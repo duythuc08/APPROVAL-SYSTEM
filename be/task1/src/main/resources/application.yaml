@@ -1,0 +1,21 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /task1
+spring:
+  application:
+    name: task1
+  datasource:
+    url: jdbc:postgresql://ep-floral-forest-ai5wnhjb-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+    username: neondb_owner
+    password: npg_ZWbo7pGFQJE3
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+        ddl-auto: update
+        show-sql: true
+        format-sql: true
+#JWT secret key
+jwt:
+  signerKey: "ktWvH+jVekZ1QVSc7imoQ0BmDed+jtf4wRlhq/U+2ctBDgk8kgtuMVe+9xS8Csxv"
