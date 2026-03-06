@@ -16,9 +16,14 @@ interface userUpdateData {
     roles: string[]; // "ROLE_USER", "ROLE_ADMIN", "ROLE_APPROVER"
 }
 
+function buildParams(page: number, size: number): string {
+    const params = new URLSearchParams({ page: String(page), size: String(size) })
+    return params.toString()
+}
+
 export const userService = {
-    getAllUsers: async (): Promise<any> => {
-        const response = await axios.get("/users/getUsers");
+    getAllUsers: async (page = 0, size = 5): Promise<any> => {
+        const response = await axios.get(`/users/getUsers?${buildParams(page, size)}`);
         return response.data; // Axios tự động parse JSON cho bạn
     },
     getAllUsersWithRoles: async (role: string): Promise<any> => {

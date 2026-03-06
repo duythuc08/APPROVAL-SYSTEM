@@ -3,6 +3,7 @@ package com.example.task1.service;
 import com.example.task1.dto.user.req.UserCreationRequest;
 import com.example.task1.dto.user.req.UserUpdateRequest;
 import com.example.task1.dto.user.res.UserResponse;
+import com.example.task1.entity.ApprovalRequests;
 import com.example.task1.entity.Roles;
 import com.example.task1.entity.Users;
 import com.example.task1.mapper.UserMapper;
@@ -11,6 +12,9 @@ import com.example.task1.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -42,10 +46,9 @@ public class UserService {
     }
 
     @PreAuthorize("hasRole('ROLE_ADMIN')")
-    public List<UserResponse> getUsers() {
-        return userRepository.findAll()
-                .stream()
-                .map(userMapper::toUserResponse).toList();
+    public Page<UserResponse> getUsers(Specification<Users> spec, Pageable pageable) {
+        Page<Users> userPage = userRepository.findAll(spec, pageable);
+        return userPage.map(userMapper::toUserResponse);
     }
 
     @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")

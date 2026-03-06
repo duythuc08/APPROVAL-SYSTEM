@@ -4,8 +4,14 @@ import com.example.task1.dto.ApiResponse;
 import com.example.task1.dto.user.req.UserCreationRequest;
 import com.example.task1.dto.user.req.UserUpdateRequest;
 import com.example.task1.dto.user.res.UserResponse;
+import com.example.task1.entity.ApprovalRequests;
+import com.example.task1.entity.Users;
 import com.example.task1.service.UserService;
+import com.turkraft.springfilter.boot.Filter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,9 +30,9 @@ public class UserController {
     }
 
     @GetMapping("/getUsers")
-    public ApiResponse<List<UserResponse>> getUsers() {
-        return ApiResponse.<List<UserResponse>>builder()
-                .result(userService.getUsers())
+    public ApiResponse<Page<UserResponse>> getUsers(@Filter Specification<Users> spec, Pageable pageable) {
+        return ApiResponse.<Page<UserResponse>>builder()
+                .result(userService.getUsers( spec, pageable))
                 .build();
     }
 
