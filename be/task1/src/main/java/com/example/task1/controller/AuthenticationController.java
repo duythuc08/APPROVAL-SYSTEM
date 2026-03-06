@@ -5,6 +5,7 @@ import com.example.task1.dto.authentication.req.AuthenticationRequest;
 import com.example.task1.dto.authentication.res.AuthenticationResponse;
 import com.example.task1.dto.authentication.res.LogoutRequest;
 import com.example.task1.service.AuthenticationService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.apache.el.parser.ParseException;
 import org.springframework.stereotype.Controller;
@@ -21,7 +22,7 @@ public class AuthenticationController {
     private final AuthenticationService authenticationService;  // ✅ Thêm final
 
     @PostMapping("/login")
-    public ApiResponse<AuthenticationResponse> login(@RequestBody AuthenticationRequest authenticationRequest){
+    public ApiResponse<AuthenticationResponse> login(@Valid @RequestBody AuthenticationRequest authenticationRequest){
         var result = authenticationService.authenticate(authenticationRequest);
         return ApiResponse.<AuthenticationResponse>builder()
                 .result(result)

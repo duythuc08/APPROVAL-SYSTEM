@@ -8,6 +8,7 @@ import com.example.task1.entity.ApprovalRequests;
 import com.example.task1.entity.Users;
 import com.example.task1.service.UserService;
 import com.turkraft.springfilter.boot.Filter;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,7 +24,7 @@ public class UserController {
     private final UserService userService;
 
     @PostMapping("/create")
-    public ApiResponse<UserResponse> createUser(@RequestBody UserCreationRequest userCreationRequest) {
+    public ApiResponse<UserResponse> createUser(@Valid @RequestBody UserCreationRequest userCreationRequest) {
         return ApiResponse.<UserResponse>builder()
                 .result(userService.createUser(userCreationRequest))
                 .build();
@@ -58,7 +59,7 @@ public class UserController {
     }
 
     @PutMapping("/updateUser/{userId}")
-    public ApiResponse<UserResponse> updateUser(@PathVariable String userId,@RequestBody UserUpdateRequest userUpdateRequest) {
+    public ApiResponse<UserResponse> updateUser(@PathVariable String userId, @Valid @RequestBody UserUpdateRequest userUpdateRequest) {
         return ApiResponse.<UserResponse>builder()
                 .result(userService.updateUser(userId, userUpdateRequest))
                 .build();

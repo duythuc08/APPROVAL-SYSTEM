@@ -163,6 +163,7 @@ export function ApprovalTable({ data, role, onDataChange, serverPagination, isFe
                 <div className="flex items-center gap-2">
 
                     <Button
+                        className="cursor-pointer"
                         variant="outline"
                         size="sm"
                         onClick={() => table.previousPage()}
@@ -176,6 +177,7 @@ export function ApprovalTable({ data, role, onDataChange, serverPagination, isFe
                     </span>
 
                     <Button
+                        className="cursor-pointer"
                         variant="outline"
                         size="sm"
                         onClick={() => table.nextPage()}

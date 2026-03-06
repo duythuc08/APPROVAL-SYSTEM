@@ -3,9 +3,10 @@ package com.example.task1.service;
 import com.example.task1.dto.user.req.UserCreationRequest;
 import com.example.task1.dto.user.req.UserUpdateRequest;
 import com.example.task1.dto.user.res.UserResponse;
-import com.example.task1.entity.ApprovalRequests;
 import com.example.task1.entity.Roles;
 import com.example.task1.entity.Users;
+import com.example.task1.exception.AppException;
+import com.example.task1.exception.ErrorCode;
 import com.example.task1.mapper.UserMapper;
 import com.example.task1.repository.RoleRepository;
 import com.example.task1.repository.UserRepository;
@@ -19,7 +20,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 
@@ -30,13 +30,13 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final RoleRepository roleRepository;
+
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     public UserResponse createUser(UserCreationRequest userCreationRequest) {
-
-        if(userRepository.existsByUserName(userCreationRequest.getUserName())){
-            throw new RuntimeException("Username already exists");
+        if (userRepository.existsByUserName(userCreationRequest.getUserName())) {
+            throw new AppException(ErrorCode.USERNAME_ALREADY_EXISTS);
         } else if (userRepository.existsByEmail(userCreationRequest.getEmail())) {
-            throw new RuntimeException("Email already exists");
+            throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
         Users user = userMapper.toUser(userCreationRequest);
@@ -63,7 +63,7 @@ public class UserService {
         String name = context.getAuthentication().getName();
 
         Users user = userRepository.findByUserName(name)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         return userMapper.toUserResponse(user);
     }
@@ -77,7 +77,7 @@ public class UserService {
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     public UserResponse updateUser(String id, UserUpdateRequest userUpdateRequest) {
         Users user = userRepository.findByUserId(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         user.setUserName(userUpdateRequest.getUserName());
         user.setEmail(userUpdateRequest.getEmail());

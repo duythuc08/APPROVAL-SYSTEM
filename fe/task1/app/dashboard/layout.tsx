@@ -5,34 +5,50 @@ import { jwtDecode } from "jwt-decode";
 import { Navbar } from "@/components/navbar";
 import {AdminSidebar, ApproverSidebar} from "@/components/sidebar";
 import {cn} from "@/lib/utils";
+import {NotificationProvider} from "@/context/NotificationContext";
+import {Toaster} from "@/components/ui/sonner";
+import {useWebSocket} from "@/hooks/useWebSocket";
+import {useNotifications} from "@/context/NotificationContext";
+
+// Component rieng de goi useWebSocket + load thong bao cu tu DB
+function WebSocketConnector({ role, token }: { role: string; token: string }) {
+    const { loadNotifications } = useNotifications();
+    useWebSocket(role, token);
+    useEffect(() => {
+        loadNotifications();
+    }, [loadNotifications]);
+    return null;
+}
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const pathname = usePathname();
     const [authorized, setAuthorized] = useState(false);
+    const [role, setRole] = useState("");
+    const [token, setToken] = useState("");
 
     useEffect(() => {
-        const token = localStorage.getItem("token");
+        const storedToken = localStorage.getItem("token");
 
-        if (!token) {
-            router.push("/"); // Không có token thì về trang login
+        if (!storedToken) {
+            router.push("/");
             return;
         }
 
         try {
-            const decoded: any = jwtDecode(token);
-            const role = decoded.scope; // "ROLE_USER", "ROLE_ADMIN", "ROLE_APPROVER"
+            const decoded: any = jwtDecode(storedToken);
+            const userRole = decoded.scope; // "ROLE_USER", "ROLE_ADMIN", "ROLE_APPROVER"
 
-            // Logic bảo vệ Route:
-            // Nếu pathname bắt đầu bằng /admin mà role không phải ADMIN thì redirect
-            if (pathname.startsWith("/dashboard/admin") && role !== "ROLE_ADMIN") {
+            if (pathname.startsWith("/dashboard/admin") && userRole !== "ROLE_ADMIN") {
                 router.push("/");
-            } else if (pathname.startsWith("/dashboard/approver") && role !== "ROLE_APPROVER") {
+            } else if (pathname.startsWith("/dashboard/approver") && userRole !== "ROLE_APPROVER") {
                 router.push("/");
-            } else if (pathname.startsWith("/dashboard/user") && role !== "ROLE_USER") {
+            } else if (pathname.startsWith("/dashboard/user") && userRole !== "ROLE_USER") {
                 router.push("/");
             } else {
                 setAuthorized(true);
+                setRole(userRole);
+                setToken(storedToken);
             }
         } catch (error) {
             localStorage.removeItem("token");
@@ -40,26 +56,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
     }, [pathname, router]);
 
-    if (!authorized) return null; // Hoặc loading spinner
+    if (!authorized) return null;
 
     const isAdminRoute = pathname.startsWith("/dashboard/admin");
     const isApproverRoute = pathname.startsWith("/dashboard/approver");
     return (
-        <div className="min-h-screen flex flex-col">
-            <Navbar />
-            <div className="flex flex-1">
-                {/* Chỉ hiện Sidebar nếu là route admin */}
-                {isAdminRoute && <AdminSidebar />}
-
-                {/* Hiện sidebar tương tự cho approver */}
-                {isApproverRoute && <ApproverSidebar />}
-                <main className={cn(
-                    "flex-1 p-6 bg-slate-50/50",
-                    !isAdminRoute && "container mx-auto" // Nếu là user thường thì căn giữa
-                )}>
-                    {children}
-                </main>
+        <NotificationProvider>
+            <WebSocketConnector role={role} token={token} />
+            <div className="min-h-screen flex flex-col">
+                <Navbar />
+                <div className="flex flex-1">
+                    {isAdminRoute && <AdminSidebar />}
+                    {isApproverRoute && <ApproverSidebar />}
+                    <main className={cn(
+                        "flex-1 p-6 bg-slate-50/50",
+                        !isAdminRoute && "container mx-auto"
+                    )}>
+                        {children}
+                    </main>
+                </div>
             </div>
-        </div>
+            <Toaster />
+        </NotificationProvider>
     );
 }

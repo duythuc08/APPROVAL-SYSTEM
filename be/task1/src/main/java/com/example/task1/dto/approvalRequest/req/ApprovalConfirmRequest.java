@@ -1,5 +1,6 @@
 package com.example.task1.dto.approvalRequest.req;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -8,6 +9,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ApprovalConfirmRequest {
-    private String approvalStatus; // "approved" hoặc "rejected"
-    private String feedback; // Phản hồi của approver, có thể là lý do từ chối hoặc ghi chú khi duyệt
+    @NotBlank(message = "Approval status is required")
+    private String approvalStatus;
+
+    private String feedback;
 }

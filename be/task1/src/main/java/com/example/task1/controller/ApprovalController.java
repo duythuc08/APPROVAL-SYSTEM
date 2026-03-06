@@ -8,6 +8,7 @@ import com.example.task1.dto.approvalRequest.res.ApprovalResponse;
 import com.example.task1.entity.ApprovalRequests;
 import com.example.task1.service.ApprovalService;
 import com.turkraft.springfilter.boot.Filter;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -50,14 +51,14 @@ public class ApprovalController {
     }
 
     @PostMapping("/create")
-    public ApiResponse<ApprovalResponse> createApprovalRequest(@RequestBody ApprovalCreationRequest request){
+    public ApiResponse<ApprovalResponse> createApprovalRequest(@Valid @RequestBody ApprovalCreationRequest request){
         return ApiResponse.<ApprovalResponse>builder()
                 .result(approvalService.createApprovalRequest(request))
                 .build();
     }
 
     @PutMapping("/{id}/confirm")
-    public ApiResponse<ApprovalConfirmResponse> confirmApprovalRequest(@PathVariable Long id, @RequestBody ApprovalConfirmRequest request){
+    public ApiResponse<ApprovalConfirmResponse> confirmApprovalRequest(@PathVariable Long id, @Valid @RequestBody ApprovalConfirmRequest request){
         return ApiResponse.<ApprovalConfirmResponse>builder()
                 .result(approvalService.confirmApproval(request,id))
                 .build();

@@ -67,7 +67,7 @@ export function ApprovalToolbar({ search, status, onSearchChange, onStatusChange
 
             {/* ── Bên phải: Tạo yêu cầu (chỉ USER) ── */}
             {role === "USER" && (
-                <Button onClick={onCreateClick} size="sm">
+                <Button onClick={onCreateClick} size="sm" className="cursor-pointer">
                     + Tạo yêu cầu
                 </Button>
             )}

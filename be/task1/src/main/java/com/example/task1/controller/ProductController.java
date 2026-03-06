@@ -5,6 +5,7 @@ import com.example.task1.dto.product.req.ProductRequest;
 import com.example.task1.dto.product.res.ProductResponse;
 import com.example.task1.enums.Department;
 import com.example.task1.service.ProductService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,7 +32,7 @@ public class ProductController {
     }
 
     @PostMapping("/create")
-    public ApiResponse<ProductResponse> createProduct(@RequestBody ProductRequest productRequest) {
+    public ApiResponse<ProductResponse> createProduct(@Valid @RequestBody ProductRequest productRequest) {
         return ApiResponse.<ProductResponse>builder()
                 .result(productService.createProduct(productRequest))
                 .build();

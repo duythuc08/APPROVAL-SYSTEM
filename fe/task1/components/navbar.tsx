@@ -15,6 +15,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {NotificationBell} from "@/components/notifications/NotificationBell";
 
 // Component Avatar nhỏ gọn
 function UserAvatar({ name }: { name: string }) {
@@ -120,6 +121,7 @@ export function Navbar() {
                     ) : (
                         <div className="h-8 w-24 animate-pulse bg-muted rounded-md" /> // Loading skeleton
                     )}
+                    <NotificationBell />
                 </div>
             </div>
         </header>

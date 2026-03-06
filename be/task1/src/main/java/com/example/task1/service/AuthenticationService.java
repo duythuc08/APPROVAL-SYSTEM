@@ -5,7 +5,8 @@ import com.example.task1.dto.authentication.res.AuthenticationResponse;
 import com.example.task1.dto.authentication.res.LogoutRequest;
 import com.example.task1.entity.InvalidatedToken;
 import com.example.task1.entity.Users;
-import com.example.task1.mapper.UserMapper;
+import com.example.task1.exception.AppException;
+import com.example.task1.exception.ErrorCode;
 import com.example.task1.repository.InvalidatedRepository;
 import com.example.task1.repository.UserRepository;
 import com.nimbusds.jose.*;
@@ -22,7 +23,6 @@ import org.springframework.util.CollectionUtils;
 
 import java.text.ParseException;
 import java.time.Instant;
-import java.util.Collection;
 import java.util.Date;
 import java.util.StringJoiner;
 
@@ -32,16 +32,17 @@ import java.util.StringJoiner;
 public class AuthenticationService {
     private final UserRepository userRepository;
     private final InvalidatedRepository invalidatedRepository;
-    //private final UserMapper userMapper;
+
     @NonFinal
-    @Value("${jwt.signerKey}") //doc bien tu file .yaml
+    @Value("${jwt.signerKey}")
     protected String SIGNER_KEY;
 
     public AuthenticationResponse authenticate(AuthenticationRequest request){
-        var user = userRepository.findByUserName(request.getUserName()).orElseThrow(() -> new RuntimeException("User not found"));
-        boolean authenticated =  request.getPassWord().equals(user.getPassWord());
+        var user = userRepository.findByUserName(request.getUserName())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        boolean authenticated = request.getPassWord().equals(user.getPassWord());
         if (!authenticated) {
-            throw new RuntimeException("Invalid credentials");
+            throw new AppException(ErrorCode.INVALID_CREDENTIALS);
         }
 
         var token = generateToken(user);
@@ -53,9 +54,8 @@ public class AuthenticationService {
     }
 
     public void logout(LogoutRequest request) throws ParseException, JOSEException {
-        var signToken =verifyToken(request.getToken()); // Kiểm tra token hợp lệ
-        var jti = signToken.getJWTClaimsSet().getJWTID(); // Lấy jti từ token
-        // Lưu jti vào blacklist (ví dụ: database, cache,...)
+        var signToken = verifyToken(request.getToken());
+        var jti = signToken.getJWTClaimsSet().getJWTID();
         Date expirationTime = signToken.getJWTClaimsSet().getExpirationTime();
 
         InvalidatedToken invalidatedToken = InvalidatedToken.builder()
@@ -67,25 +67,23 @@ public class AuthenticationService {
 
     private String generateToken(Users user) {
         JWSHeader header = new JWSHeader(JWSAlgorithm.HS512);
-        String jti = java.util.UUID.randomUUID().toString(); // Unique identifier for the token
+        String jti = java.util.UUID.randomUUID().toString();
         JWTClaimsSet jwtClaimsSet = new JWTClaimsSet.Builder()
                 .subject(user.getUserName())
                 .jwtID(jti)
                 .issuer("duythucdev")
                 .issueTime(new Date())
-                .expirationTime(new Date(Instant.now().plusSeconds(3600).toEpochMilli())) // Token hết hạn sau 1 giờ
-                .claim("scope", buildScope(user)) // Thêm các claim tùy ý
+                .expirationTime(new Date(Instant.now().plusSeconds(3600).toEpochMilli()))
+                .claim("scope", buildScope(user))
                 .build();
 
-        Payload payload = new Payload(jwtClaimsSet.toJSONObject());
-
-        try{
+        try {
             SignedJWT signedJWT = new SignedJWT(header, jwtClaimsSet);
             signedJWT.sign(new MACSigner(SIGNER_KEY.getBytes()));
             return signedJWT.serialize();
-        } catch (Exception e){
+        } catch (Exception e) {
             log.error("can not create token", e);
-            throw new RuntimeException("Token generation failed");
+            throw new AppException(ErrorCode.TOKEN_GENERATION_FAILED);
         }
     }
 
@@ -98,7 +96,7 @@ public class AuthenticationService {
 
         var verified = signedJWT.verify(verifier);
         if (!verified || expirationTime.after(new Date())) {
-            throw new RuntimeException("Token is invalid or expired");
+            throw new AppException(ErrorCode.TOKEN_INVALID);
         }
 
         return signedJWT;
