@@ -1,0 +1,14 @@
+# Frontend
+fe/task1/node_modules/
+fe/task1/.next/
+fe/task1/.env
+
+# Backend
+be/task1/target/
+be/task1/.mvn/
+be/task1/*.jar
+
+# IDE
+.idea/
+.vscode/
+*.swp
