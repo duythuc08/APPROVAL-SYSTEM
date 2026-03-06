@@ -4,11 +4,10 @@ import { useState } from "react"
 import {
     useReactTable,
     getCoreRowModel,
-    getFilteredRowModel,
     getPaginationRowModel,
     getSortedRowModel,
     flexRender,
-    ColumnFiltersState,
+    PaginationState,
     SortingState,
     VisibilityState,
 } from "@tanstack/react-table"
@@ -35,50 +34,60 @@ import { CreateRequestModal } from "./modals/create-request-modal"
 // FIX: Xoá import ReviewModal và DetailModal
 // — 2 modal này đã được xử lý bên trong DataTableRowActions
 
+interface ServerPagination {
+    pageIndex: number
+    pageCount: number
+    totalElements: number
+    onPageChange: (page: number) => void
+}
+
+interface FilterState {
+    search: string
+    status: string
+    onSearchChange: (value: string) => void
+    onStatusChange: (value: string) => void
+    onReset: () => void
+}
+
 interface ApprovalTableProps {
     data: ApprovalRequest[]
     role: CurrentRole
     onDataChange?: () => void
+    serverPagination: ServerPagination
+    isFetching?: boolean
+    filterState: FilterState
 }
 
-export function ApprovalTable({ data, role, onDataChange }: ApprovalTableProps) {
+export function ApprovalTable({ data, role, onDataChange, serverPagination, isFetching, filterState }: ApprovalTableProps) {
 
     // ── Table state ────────────────────────────────────────────────────────────
-    const [sorting, setSorting]             = useState<SortingState>([])
-    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+    const [sorting, setSorting]       = useState<SortingState>([])
     const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
-    const [globalFilter, setGlobalFilter]   = useState("")
 
     // ── Modal state (chỉ còn Create) ──────────────────────────────────────────
     const [createOpen, setCreateOpen] = useState(false)
 
-    // FIX: getColumns chỉ nhận role, không cần callbacks nữa
     const columns = getColumns(role)
+
+    const pagination: PaginationState = { pageIndex: serverPagination.pageIndex, pageSize: 5 }
 
     // ── Table instance ─────────────────────────────────────────────────────────
     const table = useReactTable({
         data,
         columns,
-        meta:{
-                onDataChange, // Truyền callback xuống cell nếu cần
-        },
-        state: {
-            sorting,
-            columnFilters,
-            columnVisibility,
-            globalFilter,
-        },
+        meta: { onDataChange },
+        state: { sorting, columnVisibility, pagination },
         onSortingChange: setSorting,
-        onColumnFiltersChange: setColumnFilters,
         onColumnVisibilityChange: setColumnVisibility,
-        onGlobalFilterChange: setGlobalFilter,
+        onPaginationChange: (updater) => {
+            const next = typeof updater === "function" ? updater(pagination) : updater
+            serverPagination.onPageChange(next.pageIndex)
+        },
+        manualPagination: true,
+        pageCount: serverPagination.pageCount,
         getCoreRowModel: getCoreRowModel(),
-        getFilteredRowModel: getFilteredRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
         getSortedRowModel: getSortedRowModel(),
-        initialState: {
-            pagination: { pageSize: 10 },
-        },
     })
 
     return (
@@ -86,13 +95,17 @@ export function ApprovalTable({ data, role, onDataChange }: ApprovalTableProps) 
 
             {/* Toolbar */}
             <ApprovalToolbar
-                table={table}
+                search={filterState.search}
+                status={filterState.status}
+                onSearchChange={filterState.onSearchChange}
+                onStatusChange={filterState.onStatusChange}
+                onReset={filterState.onReset}
                 role={role}
                 onCreateClick={() => setCreateOpen(true)}
             />
 
             {/* Bảng chính */}
-            <div className="rounded-md border">
+            <div className={`rounded-md border relative transition-opacity duration-150 ${isFetching ? "opacity-50 pointer-events-none" : ""}`}>
                 <Table>
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
@@ -135,43 +148,25 @@ export function ApprovalTable({ data, role, onDataChange }: ApprovalTableProps) 
 
             {/* Pagination */}
             <div className="flex items-center justify-between px-2">
-                <p className="text-sm text-muted-foreground">
-                    Hiển thị{" "}
-                    <strong>
-                        {table.getFilteredRowModel().rows.length === 0
-                            ? 0
-                            : table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}
-                        –
-                        {Math.min(
-                            (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-                            table.getFilteredRowModel().rows.length
-                        )}
-                    </strong>{" "}
-                    / <strong>{table.getFilteredRowModel().rows.length}</strong> yêu cầu
-                </p>
+                {(() => {
+                    const { pageIndex, pageSize } = table.getState().pagination
+                    const total = serverPagination.totalElements
+                    const from = total === 0 ? 0 : pageIndex * pageSize + 1
+                    const to = Math.min((pageIndex + 1) * pageSize, total)
+                    return (
+                        <p className="text-sm text-muted-foreground">
+                            Hiển thị <strong>{from}–{to}</strong> / <strong>{total}</strong> yêu cầu
+                        </p>
+                    )
+                })()}
 
                 <div className="flex items-center gap-2">
-                    <Select
-                        value={String(table.getState().pagination.pageSize)}
-                        onValueChange={(value) => table.setPageSize(Number(value))}
-                    >
-                        <SelectTrigger className="w-[100px] h-8">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {[5, 10, 20, 50].map((size) => (
-                                <SelectItem key={size} value={String(size)}>
-                                    {size} / trang
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
 
                     <Button
                         variant="outline"
                         size="sm"
                         onClick={() => table.previousPage()}
-                        disabled={!table.getCanPreviousPage()}
+                        disabled={!table.getCanPreviousPage() || isFetching}
                     >
                         ← Trước
                     </Button>
@@ -184,7 +179,7 @@ export function ApprovalTable({ data, role, onDataChange }: ApprovalTableProps) 
                         variant="outline"
                         size="sm"
                         onClick={() => table.nextPage()}
-                        disabled={!table.getCanNextPage()}
+                        disabled={!table.getCanNextPage() || isFetching}
                     >
                         Tiếp →
                     </Button>

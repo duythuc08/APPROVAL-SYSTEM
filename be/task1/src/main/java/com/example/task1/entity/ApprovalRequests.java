@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.BatchSize;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -14,7 +15,12 @@ import java.util.Set;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "approval_requests")
+@Table(name = "approval_requests", indexes = {
+        @Index(name = "idx_ar_status",   columnList = "approval_status"),
+        @Index(name = "idx_ar_creator",  columnList = "creator_user_id"),
+        @Index(name = "idx_ar_approver", columnList = "approver_id"),
+        @Index(name = "idx_ar_created",  columnList = "created_at"),
+})
 public class ApprovalRequests {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,6 +33,7 @@ public class ApprovalRequests {
     @Column(name = "feedback") // Ép tên cột cho chắc chắn
     private String feedback;
     @ManyToMany
+    @BatchSize(size = 25)
     @JoinTable(
             name = "approval_request_products",
             joinColumns = @JoinColumn(name = "approval_request_id"),
@@ -35,6 +42,7 @@ public class ApprovalRequests {
     private Set<Products> products;
 
     @ElementCollection
+    @BatchSize(size = 25)
     @CollectionTable(
             name = "approval_request_quantities",
             joinColumns = @JoinColumn(name = "approval_request_id")
@@ -43,11 +51,11 @@ public class ApprovalRequests {
     @Column(name = "quantity")
     private Map<Long, Integer> productQuantities = new HashMap<>();
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "creator_user_id")
     private Users creatorUser;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "approver_id")
     private Users currentApprover;
 

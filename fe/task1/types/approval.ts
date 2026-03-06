@@ -39,6 +39,15 @@ export interface ApprovalRequest {
     creatorUser: AppUser
     currentApprover: AppUser
     feedback: string | null
+    createdAt: string
+    updatedAt: string | null
+}
+
+export interface PagedApprovalResult {
+    content: ApprovalRequest[]
+    totalElements: number
+    totalPages: number
+    number: number
 }
 
 export interface CreateApprovalRequestDTO {

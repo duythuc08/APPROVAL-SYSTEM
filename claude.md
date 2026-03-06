@@ -99,7 +99,7 @@ jwt:
 | email      | String     | Email                       |
 | name       | String     | Ho ten that                 |
 | department | Department | Phong ban (enum)            |
-| roles      | Set<Roles> | ManyToMany voi bang roles   |
+| roles      | Set<Roles> | ManyToMany voi bang roles (`@BatchSize(size=10)`) |
 
 ### roles
 | Field    | Type   | Mo ta              |
@@ -118,17 +118,25 @@ jwt:
 | owner              | Users       | ManyToOne - Approver so huu  |
 
 ### approval_requests
-| Field              | Type                      | Mo ta                                  |
-|--------------------|---------------------------|----------------------------------------|
-| approvalRequestId  | Long PK                   | Tu sinh IDENTITY                       |
-| title              | String                    | Tieu de yeu cau                        |
-| approvalDescription| String                    | Mo ta yeu cau                          |
-| products           | Set<Products>             | Danh sach san pham duoc yeu cau        |
-| productQuantities  | Map<Long, Integer>        | So luong tung san pham duoc yeu cau    |
-| creatorUser        | Users                     | Nguoi tao yeu cau (ROLE_USER)          |
-| currentApprover    | Users                     | Nguoi duyet (ROLE_APPROVER)            |
-| approvalStatus     | String                    | PENDING / APPROVED / REJECTED          |
-| feedback           | String                    | Nhan xet cua approver                  |
+| Field              | Type                      | Mo ta                                                             |
+|--------------------|---------------------------|-------------------------------------------------------------------|
+| approvalRequestId  | Long PK                   | Tu sinh IDENTITY                                                  |
+| title              | String                    | Tieu de yeu cau                                                   |
+| approvalDescription| String                    | Mo ta yeu cau                                                     |
+| products           | Set<Products>             | Danh sach san pham duoc yeu cau (`@BatchSize(size=10)`)           |
+| productQuantities  | Map<Long, Integer>        | So luong tung san pham duoc yeu cau (`@BatchSize(size=10)`)       |
+| creatorUser        | Users                     | Nguoi tao yeu cau (ROLE_USER) — EAGER                            |
+| currentApprover    | Users                     | Nguoi duyet (ROLE_APPROVER) — EAGER                              |
+| approvalStatus     | String                    | PENDING / APPROVED / REJECTED                                     |
+| feedback           | String                    | Nhan xet cua approver                                             |
+| createdAt          | LocalDateTime             | Thoi diem tao yeu cau (set khi tao)                               |
+| updatedAt          | LocalDateTime             | Thoi diem cap nhat (set khi confirm, null neu con PENDING)        |
+
+**DB Indexes tren approval_requests:**
+- `idx_ar_status` — tren cot `approvalStatus`
+- `idx_ar_creator` — tren cot `creatorUser`
+- `idx_ar_approver` — tren cot `currentApprover`
+- `idx_ar_created` — tren cot `createdAt`
 
 ### invalidated_tokens
 | Field      | Type   | Mo ta                           |
@@ -247,14 +255,36 @@ Base URL: `http://localhost:8080/task1`
 
 ### Approval Requests (/approval-requests) - Can JWT
 
-| Method | URL                              | Role     | Mo ta                                    |
-|--------|----------------------------------|----------|------------------------------------------|
-| GET    | /approval-requests               | ADMIN    | Lay tat ca yeu cau                       |
-| GET    | /approval-requests/myUser        | USER     | Lay yeu cau toi da tao                   |
-| GET    | /approval-requests/myApprover    | APPROVER | Lay yeu cau can toi duyet (PENDING)      |
-| GET    | /approval-requests/detail/{id}   | Bat ki   | Lay chi tiet mot yeu cau                 |
-| POST   | /approval-requests/create        | USER     | Tao yeu cau moi                          |
-| PUT    | /approval-requests/{id}/confirm  | APPROVER | Duyet hoac tu choi yeu cau               |
+| Method | URL                              | Role     | Mo ta                                                          |
+|--------|----------------------------------|----------|----------------------------------------------------------------|
+| GET    | /approval-requests               | ADMIN    | Lay tat ca yeu cau — `Page<ApprovalResponse>` (filter + page) |
+| GET    | /approval-requests/myUser        | USER     | Lay yeu cau toi da tao — `Page<ApprovalResponse>`             |
+| GET    | /approval-requests/myApprover    | APPROVER | Lay yeu cau can toi duyet — `Page<ApprovalResponse>`          |
+| GET    | /approval-requests/detail/{id}   | Bat ki   | Lay chi tiet mot yeu cau                                       |
+| POST   | /approval-requests/create        | USER     | Tao yeu cau moi                                                |
+| PUT    | /approval-requests/{id}/confirm  | APPROVER | Duyet hoac tu choi yeu cau                                     |
+
+**Query params cho 3 GET phan trang (dung SpringFilter + Pageable):**
+```
+?page=0&size=10&filter=title~~'keyword'&sort=createdAt,desc
+```
+- `filter` — SpringFilter query string, vi du: `title~~'abc' and approvalStatus:'PENDING'`
+- `page`, `size` — phan trang (Spring Pageable)
+- `sort` — sap xep, vi du `createdAt,desc`
+
+**Page response (result la Spring Page object):**
+```json
+{
+  "code": 1000,
+  "result": {
+    "content": [ ... ],
+    "totalElements": 50,
+    "totalPages": 5,
+    "number": 0,
+    "size": 10
+  }
+}
+```
 
 **ApprovalCreationRequest body:**
 ```json
@@ -340,11 +370,11 @@ Base URL: `http://localhost:8080/task1`
 - `components/sidebar.tsx` - `AdminSidebar` (3 muc menu) va `ApproverSidebar` (2 muc menu)
 
 ### Approval Components (`components/approval/`)
-- `approval-table.tsx` - Bang hien thi danh sach yeu cau, dung TanStack React Table
-- `approval-toolbar.tsx` - Thanh cong cu tren bang (loc, tim kiem)
-- `columns.tsx` - Dinh nghia cot bang
+- `approval-table.tsx` - Bang hien thi danh sach yeu cau, dung TanStack React Table; **server-side pagination bat buoc** — khong co globalFilter/columnFilters noi bo
+- `approval-toolbar.tsx` - Thanh cong cu tren bang; **tach roi khoi TanStack Table**, nhan `search`, `status`, `onSearchChange`, `onStatusChange` tu props (khong con phu thuoc vao table instance)
+- `columns.tsx` - Dinh nghia cot bang; **khong co filterFn** (filter duoc xu ly phia server)
 - `approval-row-actions.tsx` - Nut hanh dong tren tung hang
-- `modals/detail-modal.tsx` - Modal xem chi tiet yeu cau
+- `modals/detail-modal.tsx` - Modal xem chi tiet yeu cau; **hien thi `createdAt` + `updatedAt`** (an `updatedAt` khi null)
 - `modals/review-modal.tsx` - Modal approver duyet/tu choi (nhap feedback)
 - `modals/create-request-modal.tsx` - Modal USER tao yeu cau moi
 
@@ -385,12 +415,26 @@ productService.deleteProductById(id)        → DELETE /products/delete/{id}
 ```
 
 ### lib/service/approval-api.tsx (dung Fetch)
-```
-getAllApprovalRequests()        → GET /approval-requests           [ADMIN]
-getPendingApprovalRequests()   → GET /approval-requests/myApprover [APPROVER]
-getMyRequests()                → GET /approval-requests/myUser     [USER]
-confirmApprovalRequest(id,...) → PUT /approval-requests/{id}/confirm [APPROVER]
-creationApprovalRequest(data)  → POST /approval-requests/create   [USER]
+```typescript
+// Helper tao SpringFilter query string
+buildFilter(search?: string, status?: string): string
+// vi du: search="abc", status="PENDING" → "title~~'abc' and approvalStatus:'PENDING'"
+
+// Return type chung
+type PagedApprovalResult = {
+  content: ApprovalResponse[];
+  totalElements: number;
+  totalPages: number;
+  number: number;   // trang hien tai (0-based)
+  size: number;
+}
+
+getAllApprovalRequests(page, size, search?, status?)   → GET /approval-requests           [ADMIN]
+getPendingApprovalRequests(page, size, search?)        → GET /approval-requests/myApprover [APPROVER]
+  // BE tu AND status=PENDING, FE khong truyen status
+getMyRequests(page, size, search?, status?)            → GET /approval-requests/myUser     [USER]
+confirmApprovalRequest(id, status, feedback)           → PUT /approval-requests/{id}/confirm [APPROVER]
+creationApprovalRequest(data)                          → POST /approval-requests/create   [USER]
 ```
 
 ---
@@ -493,10 +537,40 @@ com.example.task1/
 
 ---
 
+## Chien Luoc Toi Uu Hieu Nang
+
+### Backend
+- **EAGER loading** cho `creatorUser` va `currentApprover` tren `ApprovalRequests` — tranh N+1 khi render list
+- **`@BatchSize(size=10)`** cho `products` (Set), `productQuantities` (Map), va `Users.roles` — gom nhieu SELECT thanh 1 IN-query thay vi query rieng tung ban ghi
+- **DB indexes**: `idx_ar_status`, `idx_ar_creator`, `idx_ar_approver`, `idx_ar_created` — tang toc WHERE/ORDER BY
+- Ket qua: giam tu ~31 query xuong con ~5 query moi trang
+
+### Frontend
+- **Cache theo key** `[endpoint, page, size, search, status]` — tranh fetch lai khi params khong doi
+- **Debounce 400ms** tren o tim kiem — giam so lan goi API khi user dang go
+- **Prefetch trang ke** ngay sau khi trang hien tai load xong — giam do tre khi chuyen trang
+- **isFetching overlay** — hien spinner de che bang trong khi du lieu moi dang tai, khong xoa data cu
+
+---
+
 ## Luu Y Quan Trong
 
 1. **Mat khau plain text**: PassWord luu thang, khong hash. Can them BCrypt neu production.
 2. **CustomJwtDecoder** dang duoc comment out - neu bat len, moi request se kiem tra token co trong blacklist khong.
 3. **ApprovalController** dung `@GetMapping("/detail/{approvalRequestId}")` nhung tham so la `long` khong co `@PathVariable` → co the bi loi khi goi.
 4. Token het han sau **1 gio** (3600 giay).
-7. CORS duoc bat tai `SecurityConfig` voi `Customizer.withDefaults()`, cau hinh cu the trong `WebConfig`.
+5. CORS duoc bat tai `SecurityConfig` voi `Customizer.withDefaults()`, cau hinh cu the trong `WebConfig`.
+6. **`@Filter` (SpringFilter)** phai duoc dat o tham so Controller (`@Filter Specification<ApprovalRequests> spec`), khong phai tang Service. Neu thieu annotation nay se gay `IllegalStateException` luc runtime.
+7. **Specification + collections**: khong dung `JOIN FETCH` voi Pageable (gay `HibernateException: firstResult/maxResults specified with collection fetch`). Thay vao do dung `@BatchSize` de load collections.
+8. **APPROVER endpoint** (`/myApprover`): BE da tu AND dieu kien `status = PENDING`, FE khong can truyen `status` vao filter.
+
+---
+
+## Pitfalls Da Gap
+
+| Van de | Nguyen nhan | Giai phap |
+|--------|-------------|-----------|
+| `IllegalStateException` khi goi filter endpoint | Thieu `@Filter` annotation tren tham so `Specification` o Controller | Them `@Filter` vao dung tham so Controller |
+| `HibernateException: firstResult/maxResults` | Dung `JOIN FETCH` voi collections trong Pageable query | Bo `JOIN FETCH`, them `@BatchSize` tren field collection |
+| N+1 query khi load danh sach approval | `creatorUser`/`currentApprover` la LAZY | Doi sang EAGER cho 2 field nay |
+| APPROVER thay yeu cau sai status | FE truyen them `status` filter vao `/myApprover` | Bo filter status o FE, de BE tu xu ly `AND status=PENDING` |

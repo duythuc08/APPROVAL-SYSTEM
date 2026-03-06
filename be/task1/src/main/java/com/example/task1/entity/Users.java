@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.BatchSize;
 
 import java.util.Set;
 
@@ -28,5 +29,6 @@ public class Users {
     private Department department;
 
     @ManyToMany
+    @BatchSize(size = 25)
     private Set<Roles> roles;
 }

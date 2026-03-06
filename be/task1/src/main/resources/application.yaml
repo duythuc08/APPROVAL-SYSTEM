@@ -14,8 +14,6 @@ spring:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
         ddl-auto: update
-        show-sql: true
-        format-sql: true
 #JWT secret key
 jwt:
   signerKey: "ktWvH+jVekZ1QVSc7imoQ0BmDed+jtf4wRlhq/U+2ctBDgk8kgtuMVe+9xS8Csxv"

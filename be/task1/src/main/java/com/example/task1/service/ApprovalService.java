@@ -15,13 +15,15 @@ import com.example.task1.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -34,30 +36,33 @@ public class ApprovalService {
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
     @PreAuthorize("hasRole('ROLE_ADMIN')")
-    public List<ApprovalResponse> getApprovalRequests() {
-        return approvalRequestRepository.findAll()
-                .stream()
-                .map(approvalRequestMapper::toApprovalResponse).toList();
+    public Page<ApprovalResponse> getApprovalRequests(Specification<ApprovalRequests> spec, Pageable pageable) {
+        Page<ApprovalRequests> approvalPage = approvalRequestRepository.findAll(spec, pageable);
+        return approvalPage.map(approvalRequestMapper::toApprovalResponse);
     }
 
     @PreAuthorize("hasRole('ROLE_APPROVER')")
-    public List<ApprovalResponse> getMyApproverApproval() {
+    public Page<ApprovalResponse> getMyApproverApproval(Specification<ApprovalRequests> spec, Pageable pageable) {
         String userName = SecurityContextHolder.getContext().getAuthentication().getName();
         Users currentUser = userRepository.findByUserName(userName)
                 .orElseThrow(() -> new RuntimeException("User not found with username: " + userName));
-        return approvalRequestRepository.findApprovalRequestsByCurrentApprover_UserIdAndApprovalStatus(currentUser.getUserId(), ApprovalRequestsStatus.PENDING.name())
-                .stream()
-                .map(approvalRequestMapper::toApprovalResponse).toList();
+        Specification<ApprovalRequests> approverSpec = (root, query, cb) -> cb.and(
+                cb.equal(root.get("currentApprover").get("userId"), currentUser.getUserId()),
+                cb.equal(root.get("approvalStatus"), ApprovalRequestsStatus.PENDING.name())
+        );
+        return approvalRequestRepository.findAll(Specification.where(approverSpec).and(spec), pageable)
+                .map(approvalRequestMapper::toApprovalResponse);
     }
 
     @PreAuthorize("hasRole('ROLE_USER')")
-    public List<ApprovalResponse> getMyUserApproval() {
+    public Page<ApprovalResponse> getMyUserApproval(Specification<ApprovalRequests> spec, Pageable pageable) {
         String userName = SecurityContextHolder.getContext().getAuthentication().getName();
         Users creatorUser = userRepository.findByUserName(userName)
                 .orElseThrow(() -> new RuntimeException("User not found with username: " + userName));
-        return approvalRequestRepository.findApprovalRequestsByCreatorUser_UserId(creatorUser.getUserId())
-                .stream()
-                .map(approvalRequestMapper::toApprovalResponse).toList();
+        Specification<ApprovalRequests> userSpec = (root, query, cb) ->
+                cb.equal(root.get("creatorUser").get("userId"), creatorUser.getUserId());
+        return approvalRequestRepository.findAll(Specification.where(userSpec).and(spec), pageable)
+                .map(approvalRequestMapper::toApprovalResponse);
     }
 
     public ApprovalResponse getApprovalRequest(long approvalRequestId) {

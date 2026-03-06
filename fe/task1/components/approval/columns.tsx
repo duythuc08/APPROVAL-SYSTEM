@@ -116,10 +116,6 @@ export function getColumns(
         accessorKey: "creatorUser",
         header: "Người yêu cầu",
         enableSorting: false,
-        filterFn: (row, _id, filterValue: string) => {
-            const user: AppUser = row.getValue("creatorUser")
-            return user.name.toLowerCase().includes(filterValue.toLowerCase())
-        },
         cell: ({ row }) => {
             const user: AppUser = row.getValue("creatorUser")
             return (
@@ -153,11 +149,6 @@ export function getColumns(
     const statusColumn: ColumnDef<ApprovalRequest> = {
         accessorKey: "ApprovalStatus",
         header: "Trạng thái",
-        filterFn: (row, columnId, filterValue: string[]) => {
-            if (!filterValue?.length) return true
-            const status: string = row.getValue(columnId)
-            return filterValue.includes(status)
-        },
         cell: ({ row }) => {
             const status: string = row.getValue("ApprovalStatus")
             const config = statusConfig[status] ?? {

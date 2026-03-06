@@ -43,27 +43,46 @@ export function DetailModal({ open, request, onOpenChange }: DetailModalProps) {
 
                     <Separator />
 
-                    <InfoRow
-                        label="Trạng thái"
-                        value={
-                            <Badge variant={
-                                request.ApprovalStatus === "PENDING" ? "pending"
-                                    : request.ApprovalStatus === "REJECTED" ? "destructive"
-                                        : "success"
-                            }>
-                                {request.ApprovalStatus}
-                            </Badge>
-                        }
-                    />
-
-                    {request.feedback && (
-                        <InfoRow
-                            label="Phản hồi"
-                            value={
-                                <span className="italic text-yellow-600">`{request.feedback}`</span>
-                            }
-                        />
-                    )}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-4">
+                            <InfoRow
+                                label="Trạng thái"
+                                value={
+                                    <Badge variant={
+                                        request.ApprovalStatus === "PENDING" ? "pending"
+                                            : request.ApprovalStatus === "REJECTED" ? "destructive"
+                                                : "success"
+                                    }>
+                                        {request.ApprovalStatus}
+                                    </Badge>
+                                }
+                            />
+                            {request.feedback && (
+                                <InfoRow
+                                    label="Phản hồi"
+                                    value={
+                                        <span className="italic text-yellow-600">`{request.feedback}`</span>
+                                    }
+                                />
+                            )}
+                        </div>
+                        <div className="space-y-4">
+                            <InfoRow
+                                label="Thời gian tạo"
+                                value={
+                                    <span>{new Date(request.createdAt).toLocaleString("vi-VN")}</span>
+                                }
+                            />
+                            {request.updatedAt && (
+                                <InfoRow
+                                    label="Thời gian duyệt"
+                                    value={
+                                        <span>{new Date(request.updatedAt).toLocaleString("vi-VN")}</span>
+                                    }
+                                />
+                            )}
+                        </div>
+                    </div>
 
                     <Separator />
 
@@ -72,7 +91,6 @@ export function DetailModal({ open, request, onOpenChange }: DetailModalProps) {
                         value={
                             <div>
                                 <p className="font-medium">{request.creatorUser.name}</p>
-                                <p className="text-xs text-muted-foreground">{request.creatorUser.email}</p>
                             </div>
                         }
                     />
@@ -82,7 +100,6 @@ export function DetailModal({ open, request, onOpenChange }: DetailModalProps) {
                         value={
                             <div>
                                 <p className="font-medium">{request.currentApprover.name}</p>
-                                <p className="text-xs text-muted-foreground">{request.currentApprover.email}</p>
                             </div>
                         }
                     />

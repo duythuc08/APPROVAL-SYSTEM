@@ -24,6 +24,20 @@ import { Button } from "@/components/ui/button";
 import {UserCog, Shield, Delete, DeleteIcon, ArchiveX, Loader2} from "lucide-react";
 import { userService } from "@/lib/service/user-api";
 import {CreateUpdateUserModal, DEPARTMENTS} from "@/app/dashboard/admin/users/create-updateUser";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+
+const ROLES = [
+    { value: "ALL", label: "Tất cả" },
+    { value: "ADMIN", label: "Admin" },
+    { value: "APPROVER", label: "Approver" },
+    { value: "USER", label: "User" },
+];
 
 export default function UserManagement() {
     const [users, setUsers] = useState<any[]>([]);
@@ -32,10 +46,14 @@ export default function UserManagement() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState<any | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [selectedRole, setSelectedRole] = useState("ALL");
 
-    const fetchUsers = async () => {
+    const fetchUsers = async (role: string = "ALL") => {
+        setLoading(true);
         try {
-            const response = await userService.getAllUsers();
+            const response = role !== "ALL"
+                ? await userService.getAllUsersWithRoles(role)
+                : await userService.getAllUsers();
             setUsers(response.result);
         } catch (error) {
             console.error("Error fetching users:", error);
@@ -45,8 +63,8 @@ export default function UserManagement() {
     };
 
     useEffect(() => {
-        fetchUsers();
-    }, []);
+        fetchUsers(selectedRole);
+    }, [selectedRole]);
 
     const handleDeleteUser = async (userId: string) => {
         setDeletingId(userId);
@@ -70,18 +88,31 @@ export default function UserManagement() {
         setIsModalOpen(true);
     };
 
-    if (loading) return <div className="p-10 text-center">Đang tải danh sách người dùng...</div>;
     return (
         <div>
             <div className="flex items-center justify-between gap-2 flex-wrap">
-                <Button onClick={handleCreate} size="sm" className="cursor-pointer flex items-center gap-2 hover:bg-blue-50 hover:text-blue-600 transition-colors">
-                    + Thêm người dùng mới
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button onClick={handleCreate} size="sm" className="cursor-pointer flex items-center gap-2 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                        + Thêm người dùng mới
+                    </Button>
+                    <Select value={selectedRole} onValueChange={setSelectedRole}>
+                        <SelectTrigger className="w-[150px] h-9 text-sm cursor-pointer">
+                            <SelectValue placeholder="Lọc vai trò" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {ROLES.map((role) => (
+                                <SelectItem key={role.value} value={role.value}>
+                                    {role.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
                 <CreateUpdateUserModal
                     isOpen={isModalOpen}
                     onClose={() => setIsModalOpen(false)}
                     userData={selectedUser}
-                    onSuccess={fetchUsers}
+                    onSuccess={() => fetchUsers(selectedRole)}
                 />
             </div>
         <div className="rounded-md border bg-white p-4 mt-3">
@@ -97,7 +128,20 @@ export default function UserManagement() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {users.map((user) => (
+                    {loading ? (
+                        <TableRow>
+                            <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                                <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
+                                Đang tải...
+                            </TableCell>
+                        </TableRow>
+                    ) : users.length === 0 ? (
+                        <TableRow>
+                            <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                                Không có người dùng nào.
+                            </TableCell>
+                        </TableRow>
+                    ) : users.map((user) => (
                         <TableRow key={user.userId}>
                             <TableCell className="font-medium">{user.name}</TableCell>
                             <TableCell>{user.userName}</TableCell>

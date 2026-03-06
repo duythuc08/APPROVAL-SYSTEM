@@ -1,4 +1,4 @@
-import {ApprovalRequest, CreateApprovalRequestDTO} from "@/types/approval";
+import {ApprovalRequest, CreateApprovalRequestDTO, PagedApprovalResult} from "@/types/approval";
 
 const BASE_URL = "http://localhost:8080/task1";
 
@@ -14,21 +14,40 @@ async function authFetch(url: string){
     return response.json();
 }
 
+function buildFilter(search: string, status: string): string {
+    const parts: string[] = []
+    if (search.trim()) {
+        const q = search.trim().replace(/'/g, "\\'")
+        parts.push(`(title ~ '*${q}*' or approvalDescription ~ '*${q}*')`)
+    }
+    if (status && status !== "ALL") {
+        parts.push(`approvalStatus : '${status}'`)
+    }
+    return parts.join(" and ")
+}
+
+function buildParams(page: number, size: number, search: string, status: string): string {
+    const params = new URLSearchParams({ page: String(page), size: String(size) })
+    const filter = buildFilter(search, status)
+    if (filter) params.set("filter", filter)
+    return params.toString()
+}
+
 //ADMIN
-export async function getAllApprovalRequests(): Promise<ApprovalRequest[]> {
-    const json = await authFetch("/approval-requests")
+export async function getAllApprovalRequests(page = 0, size = 5, search = "", status = "ALL"): Promise<PagedApprovalResult> {
+    const json = await authFetch(`/approval-requests?${buildParams(page, size, search, status)}`)
     return json.result;
 }
 
 // APPROVER
-export async function getPendingApprovalRequests(): Promise<ApprovalRequest[]> {
-    const json = await authFetch("/approval-requests/myApprover")
+export async function getPendingApprovalRequests(page = 0, size = 5, search = ""): Promise<PagedApprovalResult> {
+    const json = await authFetch(`/approval-requests/myApprover?${buildParams(page, size, search, "ALL")}`)
     return json.result;
 }
 
 // USER
-export async function getMyRequests(): Promise<ApprovalRequest[]> {
-    const json = await authFetch("/approval-requests/myUser")
+export async function getMyRequests(page = 0, size = 5, search = "", status = "ALL"): Promise<PagedApprovalResult> {
+    const json = await authFetch(`/approval-requests/myUser?${buildParams(page, size, search, status)}`)
     return json.result
 }
 

@@ -5,11 +5,15 @@ import com.example.task1.dto.approvalRequest.req.ApprovalConfirmRequest;
 import com.example.task1.dto.approvalRequest.req.ApprovalCreationRequest;
 import com.example.task1.dto.approvalRequest.res.ApprovalConfirmResponse;
 import com.example.task1.dto.approvalRequest.res.ApprovalResponse;
+import com.example.task1.entity.ApprovalRequests;
 import com.example.task1.service.ApprovalService;
+import com.turkraft.springfilter.boot.Filter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 
 @RestController
 @RequestMapping("/approval-requests")
@@ -18,23 +22,23 @@ public class ApprovalController {
     private final ApprovalService approvalService;
 
     @GetMapping
-    public ApiResponse<List<ApprovalResponse>> getAllApprovalRequests(){
-        return ApiResponse.<List<ApprovalResponse>>builder()
-                .result(approvalService.getApprovalRequests())
+    public ApiResponse<Page<ApprovalResponse>> getAllApprovalRequests(@Filter Specification<ApprovalRequests> spec, Pageable pageable){
+        return ApiResponse.<Page<ApprovalResponse>>builder()
+                .result(approvalService.getApprovalRequests(spec,pageable))
                 .build();
     }
 
     @GetMapping("/myUser")
-    public ApiResponse<List<ApprovalResponse>> getMyUserApprovalRequests(){
-        return ApiResponse.<List<ApprovalResponse>>builder()
-                .result(approvalService.getMyUserApproval())
+    public ApiResponse<Page<ApprovalResponse>> getMyUserApprovalRequests(@Filter Specification<ApprovalRequests> spec, Pageable pageable){
+        return ApiResponse.<Page<ApprovalResponse>>builder()
+                .result(approvalService.getMyUserApproval(spec, pageable))
                 .build();
     }
 
     @GetMapping("/myApprover")
-    public ApiResponse<List<ApprovalResponse>> getMyApproverApprovalRequests(){
-        return ApiResponse.<List<ApprovalResponse>>builder()
-                .result(approvalService.getMyApproverApproval())
+    public ApiResponse<Page<ApprovalResponse>> getMyApproverApprovalRequests(@Filter Specification<ApprovalRequests> spec, Pageable pageable){
+        return ApiResponse.<Page<ApprovalResponse>>builder()
+                .result(approvalService.getMyApproverApproval(spec, pageable))
                 .build();
     }
 
