@@ -2,11 +2,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Users, FileCheck, LayoutDashboard } from "lucide-react";
+import { Users, FileCheck, LayoutDashboard, GitBranch } from "lucide-react";
 
 const adminMenuItems = [
     { name: "Tổng quan", href: "/dashboard/admin", icon: LayoutDashboard },
     { name: "Quản lý yêu cầu", href: "/dashboard/admin/requests", icon: FileCheck },
+    { name: "Quản lý quy trình", href: "/dashboard/admin/workflows", icon: GitBranch },
     { name: "Quản lý người dùng", href: "/dashboard/admin/users", icon: Users },
 ];
 

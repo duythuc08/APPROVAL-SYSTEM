@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -14,15 +15,18 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ApprovalResponse {
-    private Long approvalRequestId;
-    private String title;
-    private String approvalDescription;
-    private String ApprovalStatus; // e.g., "PENDING", "APPROVED", "REJECTED"
-    private Set<Products> products;
-    private Map<Long, Integer> productQuantities; // productId → số lượng yêu cầu
-    private Users creatorUser;
-    private Users currentApprover;
-    private String feedback;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    Long approvalRequestId;
+    String title;
+    String approvalStatus;
+    String creatorName;
+    String templateName;                // Tên quy trình
+    int currentStepOrder;
+    int totalSteps;
+    String currentStepName;            // "Trưởng phòng duyệt"
+    String currentApproverName;        // Tính từ step hiện tại
+    Map<String, Object> requestData;
+    List<ApprovalHistoryResponse> history;
+    LocalDateTime createdAt;
+    LocalDateTime updatedAt;
+
 }

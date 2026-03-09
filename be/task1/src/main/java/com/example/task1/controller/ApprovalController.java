@@ -23,44 +23,45 @@ public class ApprovalController {
     private final ApprovalService approvalService;
 
     @GetMapping
-    public ApiResponse<Page<ApprovalResponse>> getAllApprovalRequests(@Filter Specification<ApprovalRequests> spec, Pageable pageable){
+    public ApiResponse<Page<ApprovalResponse>> getAllApprovalRequests(@Filter Specification<ApprovalRequests> spec, Pageable pageable) {
         return ApiResponse.<Page<ApprovalResponse>>builder()
-                .result(approvalService.getApprovalRequests(spec,pageable))
+                .result(approvalService.getApprovalRequests(spec, pageable))
                 .build();
     }
 
     @GetMapping("/myUser")
-    public ApiResponse<Page<ApprovalResponse>> getMyUserApprovalRequests(@Filter Specification<ApprovalRequests> spec, Pageable pageable){
+    public ApiResponse<Page<ApprovalResponse>> getMyUserApprovalRequests(@Filter Specification<ApprovalRequests> spec, Pageable pageable) {
         return ApiResponse.<Page<ApprovalResponse>>builder()
                 .result(approvalService.getMyUserApproval(spec, pageable))
                 .build();
     }
 
     @GetMapping("/myApprover")
-    public ApiResponse<Page<ApprovalResponse>> getMyApproverApprovalRequests(@Filter Specification<ApprovalRequests> spec, Pageable pageable){
+    public ApiResponse<Page<ApprovalResponse>> getMyApproverApprovalRequests(@Filter Specification<ApprovalRequests> spec, Pageable pageable) {
         return ApiResponse.<Page<ApprovalResponse>>builder()
                 .result(approvalService.getMyApproverApproval(spec, pageable))
                 .build();
     }
 
     @GetMapping("/detail/{approvalRequestId}")
-    public ApiResponse<ApprovalResponse> getApprovalRequestDetail(long approvalRequestId){
+    public ApiResponse<ApprovalResponse> getApprovalRequestDetail(@PathVariable long approvalRequestId) {
         return ApiResponse.<ApprovalResponse>builder()
                 .result(approvalService.getApprovalRequest(approvalRequestId))
                 .build();
     }
 
     @PostMapping("/create")
-    public ApiResponse<ApprovalResponse> createApprovalRequest(@Valid @RequestBody ApprovalCreationRequest request){
+    public ApiResponse<ApprovalResponse> createApprovalRequest(@Valid @RequestBody ApprovalCreationRequest request) {
         return ApiResponse.<ApprovalResponse>builder()
                 .result(approvalService.createApprovalRequest(request))
                 .build();
     }
 
     @PutMapping("/{id}/confirm")
-    public ApiResponse<ApprovalConfirmResponse> confirmApprovalRequest(@PathVariable Long id, @Valid @RequestBody ApprovalConfirmRequest request){
+    public ApiResponse<ApprovalConfirmResponse> confirmApprovalRequest(@PathVariable Long id,
+                                                                       @Valid @RequestBody ApprovalConfirmRequest request) {
         return ApiResponse.<ApprovalConfirmResponse>builder()
-                .result(approvalService.confirmApproval(request,id))
+                .result(approvalService.confirmApproval(request, id))
                 .build();
     }
 }

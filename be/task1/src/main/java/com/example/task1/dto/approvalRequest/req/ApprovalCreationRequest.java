@@ -15,12 +15,6 @@ import java.util.Map;
 public class ApprovalCreationRequest {
     @NotBlank(message = "Title is required")
     private String title;
-
-    private String approvalDescription;
-
-    @NotEmpty(message = "Product quantities must not be empty")
-    private Map<Long, Integer> productQuantities;
-
-    @NotBlank(message = "Approver is required")
-    private String currentApproverId;
+    Long templateId;
+    Map<String, Object> requestData;
 }

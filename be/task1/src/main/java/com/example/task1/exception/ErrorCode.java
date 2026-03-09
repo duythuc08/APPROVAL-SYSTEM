@@ -30,6 +30,13 @@ public enum ErrorCode {
     NOT_APPROVER_OF_REQUEST(4004, "You are not the approver of this request", HttpStatus.FORBIDDEN),
     APPROVAL_ALREADY_PROCESSED(4005, "This request has already been processed", HttpStatus.BAD_REQUEST),
     INSUFFICIENT_STOCK(4006, "Insufficient stock for product", HttpStatus.BAD_REQUEST),
+    STEP_NOT_WAITING(4007, "This step is not waiting for approval", HttpStatus.BAD_REQUEST),
+
+    // Workflow errors (8xxx)
+    WORKFLOW_NOT_FOUND(8001, "Workflow template not found", HttpStatus.NOT_FOUND),
+    WORKFLOW_NAME_EXISTS(8002, "Workflow template name already exists", HttpStatus.CONFLICT),
+    WORKFLOW_NO_STEPS(8003, "Workflow template must have at least one step", HttpStatus.BAD_REQUEST),
+    WORKFLOW_IN_USE(8004, "Cannot delete workflow template that is in use", HttpStatus.BAD_REQUEST),
 
     // Notification errors (6xxx)
     NOTIFICATION_NOT_FOUND(6001, "Notification not found", HttpStatus.NOT_FOUND),

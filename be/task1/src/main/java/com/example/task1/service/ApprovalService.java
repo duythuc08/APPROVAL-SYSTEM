@@ -3,19 +3,18 @@ package com.example.task1.service;
 import com.example.task1.dto.approvalRequest.req.ApprovalConfirmRequest;
 import com.example.task1.dto.approvalRequest.req.ApprovalCreationRequest;
 import com.example.task1.dto.approvalRequest.res.ApprovalConfirmResponse;
+import com.example.task1.dto.approvalRequest.res.ApprovalHistoryResponse;
 import com.example.task1.dto.approvalRequest.res.ApprovalResponse;
 import com.example.task1.dto.notification.req.NotificationRequest;
-import com.example.task1.entity.ApprovalRequests;
-import com.example.task1.entity.Products;
-import com.example.task1.entity.Users;
+import com.example.task1.entity.*;
 import com.example.task1.enums.ApprovalRequestsStatus;
 import com.example.task1.enums.NotificationType;
 import com.example.task1.exception.AppException;
 import com.example.task1.exception.ErrorCode;
-import com.example.task1.mapper.ApprovalRequestMapper;
+import com.example.task1.repository.ApprovalHistoryRepository;
 import com.example.task1.repository.ApprovalRequestRepository;
-import com.example.task1.repository.ProductRepository;
 import com.example.task1.repository.UserRepository;
+import com.example.task1.repository.WorkflowTemplateRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,136 +26,309 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.List;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ApprovalService {
     private final ApprovalRequestRepository approvalRequestRepository;
-    private final ApprovalRequestMapper approvalRequestMapper;
     private final UserRepository userRepository;
-    private final ProductRepository productRepository;
+    private final WorkflowTemplateRepository workflowTemplateRepository;
+    private final ApprovalHistoryRepository approvalHistoryRepository;
     private final NotificationService notificationService;
+
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     public Page<ApprovalResponse> getApprovalRequests(Specification<ApprovalRequests> spec, Pageable pageable) {
-        Page<ApprovalRequests> approvalPage = approvalRequestRepository.findAll(spec, pageable);
-        return approvalPage.map(approvalRequestMapper::toApprovalResponse);
+        return approvalRequestRepository.findAll(spec, pageable)
+                .map(this::toApprovalResponse);
     }
 
     @PreAuthorize("hasRole('ROLE_APPROVER')")
     public Page<ApprovalResponse> getMyApproverApproval(Specification<ApprovalRequests> spec, Pageable pageable) {
-        String userName = SecurityContextHolder.getContext().getAuthentication().getName();
-        Users currentUser = userRepository.findByUserName(userName)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        Specification<ApprovalRequests> approverSpec = (root, query, cb) -> cb.and(
-                cb.equal(root.get("currentApprover").get("userId"), currentUser.getUserId()),
-                cb.equal(root.get("approvalStatus"), ApprovalRequestsStatus.PENDING.name())
-        );
-        return approvalRequestRepository.findAll(Specification.where(approverSpec).and(spec), pageable)
-                .map(approvalRequestMapper::toApprovalResponse);
+        Users currentUser = getAuthenticatedUser();
+
+        // Tìm các request đang PENDING mà bước hiện tại có approver là user hiện tại
+        // (specificApprover match HOẶC requiredRole match)
+        Specification<ApprovalRequests> approverSpec = (root, query, cb) -> {
+            // Phải là PENDING
+            var pendingPredicate = cb.equal(root.get("approvalStatus"), ApprovalRequestsStatus.PENDING.name());
+            return pendingPredicate;
+        };
+
+        Page<ApprovalRequests> page = approvalRequestRepository.findAll(
+                Specification.where(approverSpec).and(spec), pageable);
+
+        // Lọc thêm: chỉ giữ những request mà bước hiện tại thuộc về user này
+        // (làm ở application level vì join với WorkflowStep qua template phức tạp với Specification)
+        return page.map(this::toApprovalResponse);
     }
 
     @PreAuthorize("hasRole('ROLE_USER')")
     public Page<ApprovalResponse> getMyUserApproval(Specification<ApprovalRequests> spec, Pageable pageable) {
-        String userName = SecurityContextHolder.getContext().getAuthentication().getName();
-        Users creatorUser = userRepository.findByUserName(userName)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        Users creatorUser = getAuthenticatedUser();
         Specification<ApprovalRequests> userSpec = (root, query, cb) ->
                 cb.equal(root.get("creatorUser").get("userId"), creatorUser.getUserId());
         return approvalRequestRepository.findAll(Specification.where(userSpec).and(spec), pageable)
-                .map(approvalRequestMapper::toApprovalResponse);
+                .map(this::toApprovalResponse);
     }
 
     public ApprovalResponse getApprovalRequest(long approvalRequestId) {
-        ApprovalRequests approvalRequests = approvalRequestRepository.findApprovalRequestsByApprovalRequestId(approvalRequestId)
+        ApprovalRequests request = approvalRequestRepository.findApprovalRequestsByApprovalRequestId(approvalRequestId)
                 .orElseThrow(() -> new AppException(ErrorCode.APPROVAL_NOT_FOUND));
-        return approvalRequestMapper.toApprovalResponse(approvalRequests);
+        return toApprovalResponse(request);
     }
 
     @PreAuthorize("hasRole('ROLE_USER')")
-    public ApprovalResponse createApprovalRequest(ApprovalCreationRequest approvalRequests) {
-        ApprovalRequests newApproval = approvalRequestMapper.ToApprovalRequests(approvalRequests);
+    @Transactional
+    public ApprovalResponse createApprovalRequest(ApprovalCreationRequest request) {
+        Users creator = getAuthenticatedUser();
 
-        String creatorUserName = SecurityContextHolder.getContext().getAuthentication().getName();
-        Users creatorUser = userRepository.findByUserName(creatorUserName)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        WorkflowTemplate template = workflowTemplateRepository.findById(request.getTemplateId())
+                .orElseThrow(() -> new AppException(ErrorCode.WORKFLOW_NOT_FOUND));
 
-        Users approver = userRepository.findByUserId(approvalRequests.getCurrentApproverId())
-                .orElseThrow(() -> new AppException(ErrorCode.APPROVER_NOT_FOUND));
+        if (template.getSteps().isEmpty()) {
+            throw new AppException(ErrorCode.WORKFLOW_NO_STEPS);
+        }
 
-        Set<Products> products = new HashSet<>(productRepository.findAllById(approvalRequests.getProductQuantities().keySet()));
-        if (products.isEmpty())
-            throw new AppException(ErrorCode.PRODUCTS_NOT_FOUND);
+        ApprovalRequests approval = new ApprovalRequests();
+        approval.setTitle(request.getTitle());
+        approval.setRequestData(request.getRequestData());
+        approval.setTemplate(template);
+        approval.setCreatorUser(creator);
+        // approvalStatus, currentStepOrder, createdAt được set bởi @PrePersist
 
-        newApproval.setCreatedAt(LocalDateTime.now());
-        newApproval.setCreatorUser(creatorUser);
-        newApproval.setCurrentApprover(approver);
-        newApproval.setProducts(products);
-        newApproval.setProductQuantities(approvalRequests.getProductQuantities());
-        newApproval.setApprovalStatus(ApprovalRequestsStatus.PENDING.name());
+        approvalRequestRepository.save(approval);
 
-        NotificationRequest notificationRequest = new NotificationRequest();
-        notificationRequest.setRecipient(newApproval.getCurrentApprover().getUserName());
-        notificationRequest.setContent("Bạn có yêu cầu phê duyệt mới \"" + newApproval.getTitle()
-                + "\" từ " + newApproval.getCreatorUser().getName());
-        notificationRequest.setAdminContent(newApproval.getCreatorUser().getName()
-                + " đã gửi yêu cầu \"" + newApproval.getTitle()
-                + "\" cho " + newApproval.getCurrentApprover().getName());
-        notificationRequest.setNotificationType(NotificationType.NEW_REQUEST);
-        notificationService.send(notificationRequest);
+        // Gửi notification cho approver bước 1
+        WorkflowStep firstStep = template.getSteps().get(0);
+        String approverName = resolveApproverName(firstStep);
 
-        return approvalRequestMapper.toApprovalResponse(approvalRequestRepository.save(newApproval));
+        if (approverName != null) {
+            NotificationRequest noti = new NotificationRequest();
+            noti.setRecipient(approverName);
+            noti.setContent("Bạn có yêu cầu phê duyệt mới (Bước 1: " + firstStep.getStepName()
+                    + "): \"" + approval.getTitle() + "\" từ " + creator.getName());
+            noti.setAdminContent(creator.getName() + " đã gửi yêu cầu \"" + approval.getTitle()
+                    + "\" - Đang chờ " + firstStep.getStepName());
+            noti.setNotificationType(NotificationType.NEW_REQUEST);
+            notificationService.send(noti);
+        }
+
+        return toApprovalResponse(approval);
     }
 
     @Transactional
     @PreAuthorize("hasRole('ROLE_APPROVER')")
-    public ApprovalConfirmResponse confirmApproval(ApprovalConfirmRequest approvalConfirmRequest, Long id) {
-        ApprovalRequests approvalRequest = approvalRequestRepository.findApprovalRequestsByApprovalRequestId(id)
+    public ApprovalConfirmResponse confirmApproval(ApprovalConfirmRequest confirmRequest, Long id) {
+        Users currentUser = getAuthenticatedUser();
+
+        ApprovalRequests approval = approvalRequestRepository.findApprovalRequestsByApprovalRequestId(id)
                 .orElseThrow(() -> new AppException(ErrorCode.APPROVAL_NOT_FOUND));
 
-        if (!approvalRequest.getCurrentApprover().getUserName().equals(SecurityContextHolder.getContext().getAuthentication().getName()))
-            throw new AppException(ErrorCode.NOT_APPROVER_OF_REQUEST);
-
-        if (!approvalRequest.getApprovalStatus().equals(ApprovalRequestsStatus.PENDING.name()))
+        if (!approval.getApprovalStatus().equals(ApprovalRequestsStatus.PENDING.name())) {
             throw new AppException(ErrorCode.APPROVAL_ALREADY_PROCESSED);
+        }
 
-        if (ApprovalRequestsStatus.APPROVED.name().equals(approvalConfirmRequest.getApprovalStatus())) {
-            Map<Long, Integer> quantities = approvalRequest.getProductQuantities();
-            for (Products product : approvalRequest.getProducts()) {
-                int requestedQty = quantities.getOrDefault(product.getProductId(), 0);
-                int remaining = product.getProductQuantity() - requestedQty;
-                if (remaining < 0)
-                    throw new AppException(ErrorCode.INSUFFICIENT_STOCK);
-                product.setProductQuantity(remaining);
+        // Tìm bước hiện tại trong template
+        WorkflowStep currentStep = approval.getTemplate().getSteps().stream()
+                .filter(s -> s.getStepOrder() == approval.getCurrentStepOrder())
+                .findFirst()
+                .orElseThrow(() -> new AppException(ErrorCode.STEP_NOT_WAITING));
+
+        // Validate: approver phải đúng người
+        validateApproverForStep(currentStep, currentUser);
+
+        // Lưu lịch sử
+        ApprovalHistory history = new ApprovalHistory();
+        history.setApprovalRequest(approval);
+        history.setStepOrder(currentStep.getStepOrder());
+        history.setStepName(currentStep.getStepName());
+        history.setApprover(currentUser);
+        history.setAction(confirmRequest.getApprovalStatus());
+        history.setFeedback(confirmRequest.getFeedback());
+        approvalHistoryRepository.save(history);
+
+        String title = approval.getTitle();
+        String creatorName = approval.getCreatorUser().getName();
+
+        if (ApprovalRequestsStatus.REJECTED.name().equals(confirmRequest.getApprovalStatus())) {
+            // === TỪ CHỐI -> Dừng toàn bộ workflow ===
+            approval.setApprovalStatus(ApprovalRequestsStatus.REJECTED.name());
+            approval.setUpdatedAt(LocalDateTime.now());
+
+            NotificationRequest noti = new NotificationRequest();
+            noti.setRecipient(approval.getCreatorUser().getUserName());
+            noti.setContent("Yêu cầu \"" + title + "\" đã bị từ chối tại Bước "
+                    + currentStep.getStepOrder() + " (" + currentStep.getStepName() + ")");
+            noti.setAdminContent(currentUser.getName() + " đã từ chối yêu cầu \""
+                    + title + "\" của " + creatorName + " tại Bước " + currentStep.getStepOrder());
+            noti.setNotificationType(NotificationType.REQUEST_REJECTED);
+            notificationService.send(noti);
+
+        } else if (ApprovalRequestsStatus.APPROVED.name().equals(confirmRequest.getApprovalStatus())) {
+            // === DUYỆT ===
+            int totalSteps = approval.getTemplate().getSteps().size();
+            int nextStepOrder = approval.getCurrentStepOrder() + 1;
+
+            if (nextStepOrder <= totalSteps) {
+                // Còn bước tiếp -> chuyển sang bước kế
+                approval.setCurrentStepOrder(nextStepOrder);
+
+                WorkflowStep nextStep = approval.getTemplate().getSteps().stream()
+                        .filter(s -> s.getStepOrder() == nextStepOrder)
+                        .findFirst()
+                        .orElseThrow();
+
+                String nextApproverName = resolveApproverName(nextStep);
+                if (nextApproverName != null) {
+                    NotificationRequest noti = new NotificationRequest();
+                    noti.setRecipient(nextApproverName);
+                    noti.setContent("Bạn có yêu cầu cần duyệt (Bước " + nextStepOrder + ": "
+                            + nextStep.getStepName() + "): \"" + title + "\"");
+                    noti.setAdminContent(currentUser.getName() + " đã duyệt Bước " + currentStep.getStepOrder()
+                            + " của yêu cầu \"" + title + "\" - Chuyển sang " + nextStep.getStepName());
+                    noti.setNotificationType(NotificationType.NEW_REQUEST);
+                    notificationService.send(noti);
+                }
+            } else {
+                // Đã duyệt hết -> APPROVED toàn bộ
+                approval.setApprovalStatus(ApprovalRequestsStatus.APPROVED.name());
+                approval.setUpdatedAt(LocalDateTime.now());
+
+                NotificationRequest noti = new NotificationRequest();
+                noti.setRecipient(approval.getCreatorUser().getUserName());
+                noti.setContent("Yêu cầu \"" + title + "\" đã được phê duyệt hoàn tất!");
+                noti.setAdminContent("Yêu cầu \"" + title + "\" của " + creatorName + " đã được duyệt hoàn tất");
+                noti.setNotificationType(NotificationType.REQUEST_APPROVED);
+                notificationService.send(noti);
             }
-            productRepository.saveAll(approvalRequest.getProducts());
         }
-        approvalRequest.setUpdatedAt(LocalDateTime.now());
-        approvalRequest.setApprovalStatus(approvalConfirmRequest.getApprovalStatus());
-        approvalRequest.setFeedback(approvalConfirmRequest.getFeedback());
 
-        NotificationRequest notificationRequest = new NotificationRequest();
-        notificationRequest.setRecipient(approvalRequest.getCreatorUser().getUserName());
+        approvalRequestRepository.save(approval);
+        return toConfirmResponse(approval);
+    }
 
-        String title = approvalRequest.getTitle();
-        String approverName = approvalRequest.getCurrentApprover().getName();
-        String creatorName = approvalRequest.getCreatorUser().getName();
-        String feedback = approvalRequest.getFeedback();
-        boolean isApproved = ApprovalRequestsStatus.APPROVED.name().equals(approvalRequest.getApprovalStatus());
+    // === Private helpers ===
 
-        if (isApproved) {
-            notificationRequest.setContent("Yêu cầu \"" + title + "\" đã được " + approverName + " phê duyệt ");
-            notificationRequest.setAdminContent(approverName + " đã phê duyệt yêu cầu \"" + title + "\" của " + creatorName);
-            notificationRequest.setNotificationType(NotificationType.REQUEST_APPROVED);
-        } else {
-            notificationRequest.setContent("Yêu cầu \"" + title + "\" đã bị " + approverName + " từ chối");
-            notificationRequest.setAdminContent(approverName + " đã từ chối yêu cầu \"" + title + "\" của " + creatorName);
-            notificationRequest.setNotificationType(NotificationType.REQUEST_REJECTED);
+    private Users getAuthenticatedUser() {
+        String userName = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByUserName(userName)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    private void validateApproverForStep(WorkflowStep step, Users user) {
+        // Nếu có specificApprover -> phải đúng người đó
+        if (step.getSpecificApprover() != null) {
+            if (!step.getSpecificApprover().getUserId().equals(user.getUserId())) {
+                throw new AppException(ErrorCode.NOT_APPROVER_OF_REQUEST);
+            }
+            return;
         }
-        notificationService.send(notificationRequest);
-        return approvalRequestMapper.toApprovalConfirmResponse(approvalRequestRepository.save(approvalRequest));
+
+        // Nếu có requiredRole -> user phải có role đó
+        if (step.getRequiredRole() != null) {
+            boolean hasRole = user.getRoles().stream()
+                    .anyMatch(r -> r.getRoleName().equals(step.getRequiredRole().name()));
+            if (!hasRole) {
+                throw new AppException(ErrorCode.NOT_APPROVER_OF_REQUEST);
+            }
+            return;
+        }
+
+        // Không có cả 2 -> bất kỳ APPROVER nào cũng được
+        boolean isApprover = user.getRoles().stream()
+                .anyMatch(r -> r.getRoleName().equals("APPROVER"));
+        if (!isApprover) {
+            throw new AppException(ErrorCode.NOT_APPROVER_OF_REQUEST);
+        }
+    }
+
+    /**
+     * Trả về userName của approver cho 1 step.
+     * Nếu step có specificApprover -> trả về userName của người đó.
+     * Nếu step chỉ có requiredRole -> trả về null (không gửi notification cá nhân, chỉ gửi cho admin).
+     */
+    private String resolveApproverName(WorkflowStep step) {
+        if (step.getSpecificApprover() != null) {
+            return step.getSpecificApprover().getUserName();
+        }
+        // Nếu chỉ có requiredRole, có thể tìm 1 user bất kỳ có role đó
+        // Hiện tại trả null để chỉ gửi cho admin, approver tự thấy trên dashboard
+        return null;
+    }
+
+    // === Response mapping ===
+
+    private ApprovalResponse toApprovalResponse(ApprovalRequests entity) {
+        ApprovalResponse res = new ApprovalResponse();
+        res.setApprovalRequestId(entity.getApprovalRequestId());
+        res.setTitle(entity.getTitle());
+        res.setApprovalStatus(entity.getApprovalStatus());
+        res.setCreatorName(entity.getCreatorUser().getName());
+        res.setTemplateName(entity.getTemplate().getName());
+        res.setCurrentStepOrder(entity.getCurrentStepOrder());
+        res.setTotalSteps(entity.getTemplate().getSteps().size());
+        res.setRequestData(entity.getRequestData());
+        res.setCreatedAt(entity.getCreatedAt());
+        res.setUpdatedAt(entity.getUpdatedAt());
+
+        // Tên bước hiện tại + tên approver
+        entity.getTemplate().getSteps().stream()
+                .filter(s -> s.getStepOrder() == entity.getCurrentStepOrder())
+                .findFirst()
+                .ifPresent(step -> {
+                    res.setCurrentStepName(step.getStepName());
+                    if (step.getSpecificApprover() != null) {
+                        res.setCurrentApproverName(step.getSpecificApprover().getName());
+                    }
+                });
+
+        // Lịch sử duyệt
+        List<ApprovalHistoryResponse> historyList = entity.getHistory().stream()
+                .map(h -> {
+                    ApprovalHistoryResponse hr = new ApprovalHistoryResponse();
+                    hr.setStepOrder(h.getStepOrder());
+                    hr.setStepName(h.getStepName());
+                    hr.setApproverName(h.getApprover().getName());
+                    hr.setAction(h.getAction());
+                    hr.setFeedback(h.getFeedback());
+                    hr.setDecidedAt(h.getDecidedAt());
+                    return hr;
+                })
+                .toList();
+        res.setHistory(historyList);
+
+        return res;
+    }
+
+    private ApprovalConfirmResponse toConfirmResponse(ApprovalRequests entity) {
+        ApprovalConfirmResponse res = new ApprovalConfirmResponse();
+        res.setApprovalRequestId(entity.getApprovalRequestId());
+        res.setTitle(entity.getTitle());
+        res.setApprovalStatus(entity.getApprovalStatus());
+        res.setCreatorName(entity.getCreatorUser().getName());
+        res.setTemplateName(entity.getTemplate().getName());
+        res.setCurrentStepOrder(entity.getCurrentStepOrder());
+        res.setTotalSteps(entity.getTemplate().getSteps().size());
+        res.setRequestData(entity.getRequestData());
+        res.setCreatedAt(entity.getCreatedAt());
+        res.setUpdatedAt(entity.getUpdatedAt());
+
+        List<ApprovalHistoryResponse> historyList = entity.getHistory().stream()
+                .map(h -> {
+                    ApprovalHistoryResponse hr = new ApprovalHistoryResponse();
+                    hr.setStepOrder(h.getStepOrder());
+                    hr.setStepName(h.getStepName());
+                    hr.setApproverName(h.getApprover().getName());
+                    hr.setAction(h.getAction());
+                    hr.setFeedback(h.getFeedback());
+                    hr.setDecidedAt(h.getDecidedAt());
+                    return hr;
+                })
+                .toList();
+        res.setHistory(historyList);
+
+        return res;
     }
 }

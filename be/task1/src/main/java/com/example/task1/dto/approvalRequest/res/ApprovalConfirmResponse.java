@@ -1,13 +1,12 @@
 package com.example.task1.dto.approvalRequest.res;
 
-import com.example.task1.entity.Products;
-import com.example.task1.entity.Users;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
-import java.util.Set;
+import java.util.List;
+import java.util.Map;
 
 @Data
 @NoArgsConstructor
@@ -15,12 +14,13 @@ import java.util.Set;
 public class ApprovalConfirmResponse {
     private Long approvalRequestId;
     private String title;
-    private String approvalDescription;
-    private Set<Products> products;
-    private Users creatorUser;
-    private Users currentApprover;
-    private String approvalStatus; // "approved" hoặc "rejected"
-    private String feedback; // Phản hồi của approver, có thể là lý do từ chối hoặc ghi chú khi duyệt
+    private String approvalStatus;
+    private String creatorName;
+    private String templateName;
+    private int currentStepOrder;
+    private int totalSteps;
+    private Map<String, Object> requestData;
+    private List<ApprovalHistoryResponse> history;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

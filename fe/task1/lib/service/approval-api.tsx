@@ -1,24 +1,23 @@
-import {ApprovalRequest, CreateApprovalRequestDTO, PagedApprovalResult} from "@/types/approval";
+import { CreateApprovalRequestDTO, PagedApprovalResult } from "@/types/approval"
 
-const BASE_URL = "http://localhost:8080/task1";
+const BASE_URL = "http://localhost:8080/task1"
 
-async function authFetch(url: string){
-    const token = localStorage.getItem("token");
+async function authFetch(url: string) {
+    const token = localStorage.getItem("token")
     const response = await fetch(`${BASE_URL}${url}`, {
         headers: {
-            "Authorization": `Bearer ${token}`
-        }
-    });
-    if(!response.ok)
-        throw new Error("API ERROR!");
-    return response.json();
+            "Authorization": `Bearer ${token}`,
+        },
+    })
+    if (!response.ok) throw new Error("API ERROR!")
+    return response.json()
 }
 
 function buildFilter(search: string, status: string): string {
     const parts: string[] = []
     if (search.trim()) {
         const q = search.trim().replace(/'/g, "\\'")
-        parts.push(`(title ~ '*${q}*' or approvalDescription ~ '*${q}*')`)
+        parts.push(`title ~ '*${q}*'`)
     }
     if (status && status !== "ALL") {
         parts.push(`approvalStatus : '${status}'`)
@@ -33,16 +32,16 @@ function buildParams(page: number, size: number, search: string, status: string)
     return params.toString()
 }
 
-//ADMIN
+// ADMIN
 export async function getAllApprovalRequests(page = 0, size = 5, search = "", status = "ALL"): Promise<PagedApprovalResult> {
     const json = await authFetch(`/approval-requests?${buildParams(page, size, search, status)}`)
-    return json.result;
+    return json.result
 }
 
 // APPROVER
 export async function getPendingApprovalRequests(page = 0, size = 5, search = ""): Promise<PagedApprovalResult> {
     const json = await authFetch(`/approval-requests/myApprover?${buildParams(page, size, search, "ALL")}`)
-    return json.result;
+    return json.result
 }
 
 // USER
@@ -52,33 +51,29 @@ export async function getMyRequests(page = 0, size = 5, search = "", status = "A
 }
 
 export async function confirmApprovalRequest(
-    id: number, approvalStatus: "APPROVED" | "REJECTED", feedback: string): Promise<void> {
-    const token =localStorage.getItem("token");
-    return fetch(`${BASE_URL}/approval-requests/${id}/confirm`, {
+    id: number, approvalStatus: "APPROVED" | "REJECTED", feedback: string
+): Promise<void> {
+    const token = localStorage.getItem("token")
+    const response = await fetch(`${BASE_URL}/approval-requests/${id}/confirm`, {
         method: "PUT",
         headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
+            "Authorization": `Bearer ${token}`,
         },
-        body: JSON.stringify({approvalStatus, feedback})
-    }).then(response => {
-        if(!response.ok)
-            throw new Error("API ERROR!");
-    });
+        body: JSON.stringify({ approvalStatus, feedback }),
+    })
+    if (!response.ok) throw new Error("API ERROR!")
 }
 
 export async function creationApprovalRequest(payload: CreateApprovalRequestDTO): Promise<void> {
-    const token =localStorage.getItem("token");
-    return fetch(`${BASE_URL}/approval-requests/create`, {
+    const token = localStorage.getItem("token")
+    const response = await fetch(`${BASE_URL}/approval-requests/create`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
+            "Authorization": `Bearer ${token}`,
         },
-        body: JSON.stringify(payload)
-    }).then(response => {
-        if(!response.ok)
-            throw new Error("API ERROR!");
-        return response.json();
-    });
+        body: JSON.stringify(payload),
+    })
+    if (!response.ok) throw new Error("API ERROR!")
 }

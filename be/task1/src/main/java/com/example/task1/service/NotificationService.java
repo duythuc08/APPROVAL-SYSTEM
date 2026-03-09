@@ -26,7 +26,7 @@ public class NotificationService {
 
     @Transactional
     public void send(NotificationRequest notificationRequest) {
-        // 1. Luu va gui cho nguoi nhan chinh (Approver hoac User)
+        // 1. Lưu và gửi cho người nhận chính (Approver hoặc User)
         Notification notification = createNotification(
                 notificationRequest.getRecipient(),
                 notificationRequest.getContent(),
@@ -35,10 +35,10 @@ public class NotificationService {
         notificationRepository.save(notification);
         messagingTemplate.convertAndSendToUser(notification.getRecipient(), "/queue/notifications", notification);
 
-        // 2. Luu rieng cho tung Admin (moi admin co isRead rieng)
+        // 2. Lưu riêng cho từng Admin (mỗi admin có isRead riêng)
         List<Users> admins = userRepository.findByRoleName("ADMIN");
         for (Users admin : admins) {
-            // Tranh gui trung neu admin cung la nguoi nhan chinh
+            // Tránh gửi trùng nếu admin cũng là người nhận chính
             if (admin.getUserName().equals(notificationRequest.getRecipient())) continue;
 
             String adminMsg = notificationRequest.getAdminContent() != null
@@ -52,7 +52,7 @@ public class NotificationService {
             notificationRepository.save(adminNoti);
         }
 
-        // 3. Broadcast real-time cho tat ca admin dang online (dung noi dung admin)
+        // 3. Broadcast real-time cho tất cả admin đang online (dùng nội dung admin)
         String broadcastMsg = notificationRequest.getAdminContent() != null
                 ? notificationRequest.getAdminContent()
                 : notificationRequest.getContent();

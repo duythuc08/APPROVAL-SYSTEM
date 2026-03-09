@@ -1,44 +1,28 @@
-// Luôn bắt đầu từ đây để có type-safety toàn app
+// Types cho Approval Workflow
 
 export type ApprovalStatus = "PENDING" | "APPROVED" | "REJECTED"
 
-export interface Product {
-    productId: number
-    productName: string
-    productDescription: string
-    productPrice: number
-}
-
-export interface AppUser {
-    userId: string
-    userName: string
-    name: string
-    email: string
-    roles: Role[]
-}
-
-export interface Role {
-    roleId: number
-    roleName: "USER" | "APPROVER" | "ADMIN"
-    permissions: Permission[]
-}
-
-export interface Permission {
-    permissionId: number
-    permissionName: string
-    permissionDescription: string
+export interface ApprovalHistoryItem {
+    stepOrder: number
+    stepName: string
+    approverName: string
+    action: "APPROVED" | "REJECTED"
+    feedback: string | null
+    decidedAt: string
 }
 
 export interface ApprovalRequest {
     approvalRequestId: number
     title: string
-    approvalDescription: string
-    ApprovalStatus: ApprovalStatus
-    products: Product[]
-    productQuantities: Record<number, number> // productId → số lượng yêu cầu
-    creatorUser: AppUser
-    currentApprover: AppUser
-    feedback: string | null
+    approvalStatus: ApprovalStatus
+    creatorName: string
+    templateName: string
+    currentStepOrder: number
+    totalSteps: number
+    currentStepName: string | null
+    currentApproverName: string | null
+    requestData: Record<string, any> | null
+    history: ApprovalHistoryItem[]
     createdAt: string
     updatedAt: string | null
 }
@@ -52,9 +36,8 @@ export interface PagedApprovalResult {
 
 export interface CreateApprovalRequestDTO {
     title: string
-    approvalDescription: string
-    productQuantities: Record<number, number> // { productId: quantity }
-    currentApproverId: string
+    templateId: number
+    requestData: Record<string, any>
 }
 
 export interface ColumnCallbacks {
@@ -63,5 +46,4 @@ export interface ColumnCallbacks {
     onViewDetail?: (request: ApprovalRequest) => void
 }
 
-// Role của người đang đăng nhập
 export type CurrentRole = "ADMIN" | "USER" | "APPROVER"

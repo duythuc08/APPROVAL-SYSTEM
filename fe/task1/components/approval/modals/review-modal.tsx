@@ -1,7 +1,5 @@
 "use client"
 
-// components/approval/modals/review-modal.tsx
-
 import { useState } from "react"
 import {
     Dialog,
@@ -16,7 +14,7 @@ import { Loader2 } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { ApprovalRequest } from "@/types/approval"
-import {confirmApprovalRequest} from "@/lib/service/approval-api"
+import { confirmApprovalRequest } from "@/lib/service/approval-api"
 
 interface ReviewModalProps {
     open: boolean
@@ -26,13 +24,7 @@ interface ReviewModalProps {
     onSuccess?: () => void
 }
 
-export function ReviewModal({
-                                open,
-                                request,
-                                action,
-                                onOpenChange,
-                                onSuccess,
-                            }: ReviewModalProps) {
+export function ReviewModal({ open, request, action, onOpenChange, onSuccess }: ReviewModalProps) {
     const [feedback, setFeedback] = useState("")
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
@@ -52,7 +44,7 @@ export function ReviewModal({
             onOpenChange(false)
             onSuccess?.()
         } catch {
-            setError("Thao tác thất bại. Vui lòng thử lại!!!.")
+            setError("Thao tác thất bại. Vui lòng thử lại.")
         } finally {
             setLoading(false)
         }
@@ -63,11 +55,15 @@ export function ReviewModal({
             <DialogContent className="max-w-md">
                 <DialogHeader>
                     <DialogTitle>
-                        {isApprove ? " Xác nhận chấp thuận" : " Xác nhận từ chối"}
+                        {isApprove ? "Xác nhận chấp thuận" : "Xác nhận từ chối"}
                     </DialogTitle>
                     <DialogDescription>
-                        Yêu cầu:{" "}
-                        <span className="font-semibold text-foreground">{request.title}</span>
+                        Yêu cầu: <span className="font-semibold text-foreground">{request.title}</span>
+                        <br />
+                        <span className="text-xs text-muted-foreground">
+                            Bước {request.currentStepOrder}/{request.totalSteps}
+                            {request.currentStepName && ` — ${request.currentStepName}`}
+                        </span>
                     </DialogDescription>
                 </DialogHeader>
 
@@ -78,11 +74,7 @@ export function ReviewModal({
                         </Label>
                         <Textarea
                             id="feedback"
-                            placeholder={
-                                isApprove
-                                    ? "Ghi chú thêm (tuỳ chọn)..."
-                                    : "Nhập lý do từ chối..."
-                            }
+                            placeholder={isApprove ? "Ghi chú thêm (tùy chọn)..." : "Nhập lý do từ chối..."}
                             value={feedback}
                             onChange={(e) => setFeedback(e.target.value)}
                             rows={3}
@@ -93,7 +85,7 @@ export function ReviewModal({
 
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading} className="cursor-pointer">
-                        Huỷ
+                        Hủy
                     </Button>
                     <Button
                         variant={isApprove ? "default" : "destructive"}
