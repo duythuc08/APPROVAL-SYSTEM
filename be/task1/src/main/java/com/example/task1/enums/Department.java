@@ -8,4 +8,5 @@ public enum Department {
     HUMAN_RESOURCE,
     SECURITY_TEAM,
     TECHNICAL_TEAM,
+    FINANCE,
 }
