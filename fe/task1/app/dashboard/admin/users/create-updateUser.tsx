@@ -36,13 +36,14 @@ export const AVAILABLE_ROLES = [
 ];
 
 export const DEPARTMENTS = [
-    { value: "MARKETING", label: "Marketing" },
-    { value: "SALES", label: "Sales" },
-    { value: "GENERAL_ADMINISTRATION", label: "Hành chính tổng hợp" },
-    { value: "PROCUREMENT_FACILITIES", label: "Mua sắm & Cơ sở vật chất" },
-    { value: "HUMAN_RESOURCE", label: "Nhân sự" },
-    { value: "SECURITY_TEAM", label: "Bảo vệ" },
-    { value: "TECHNICAL_TEAM", label: "Kỹ thuật" },
+    { value: "MARKETING", label: "Phòng Marketing" },
+    { value: "SALES", label: "Phòng Kinh Doanh" },
+    { value: "GENERAL_ADMINISTRATION", label: "Phòng Hành chính tổng hợp" },
+    { value: "PROCUREMENT_FACILITIES", label: "Phòng Mua sắm & Cơ sở vật chất" },
+    { value: "HUMAN_RESOURCE", label: "Phòng Nhân sự" },
+    { value: "SECURITY_TEAM", label: "Phòng Bảo vệ" },
+    { value: "TECHNICAL_TEAM", label: "Phòng Kỹ thuật" },
+    { value: "FINANCE", label: "Phòng Tài chính" },
 ];
 
 interface UserModalProps {

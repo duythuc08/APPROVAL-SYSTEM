@@ -20,6 +20,7 @@ public class Notification {
     private String message;
     private String recipient; // Có thể là username hoặc userId
     private String content; // Nội dung chi tiết của thông báo
+    @Enumerated(EnumType.STRING)
     private NotificationType type;
     private boolean isRead; // Trạng thái đã đọc hay chưa
     private LocalDateTime createdAt = LocalDateTime.now();

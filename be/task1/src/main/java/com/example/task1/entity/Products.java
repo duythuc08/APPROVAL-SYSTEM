@@ -19,6 +19,7 @@ public class Products {
     private String productName;
     private String productDescription;
     private Integer productQuantity;
+    @Enumerated(EnumType.STRING)
     private ProductType productType;
 
     @ManyToOne

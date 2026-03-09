@@ -26,6 +26,7 @@ public class Users {
     private String name;
 
     @Column(nullable = true)
+    @Enumerated(EnumType.STRING)
     private Department department;
 
     @ManyToMany
