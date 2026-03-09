@@ -144,7 +144,22 @@ export default function WorkflowManagement() {
     }
 
     const handleStepChange = (id: number, field: keyof StepForm, value: string) => {
-        setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)))
+        setSteps((prev) => prev.map((s) => {
+            if (s.id !== id) return s
+            const updated = { ...s, [field]: value }
+            // Khi chọn ADMIN thì xóa người cụ thể (không cần chọn)
+            if (field === "requiredRole" && value === "ADMIN") {
+                updated.specificApproverId = ""
+            }
+            return updated
+        }))
+    }
+
+    // Lấy danh sách userId đã được chọn ở các bước khác
+    const getSelectedApproverIds = (currentStepId: number) => {
+        return steps
+            .filter((s) => s.id !== currentStepId && s.specificApproverId)
+            .map((s) => s.specificApproverId)
     }
 
     const handleSave = async () => {
@@ -320,19 +335,30 @@ export default function WorkflowManagement() {
                                                         ))}
                                                     </SelectContent>
                                                 </Select>
-                                                <Select
-                                                    value={step.specificApproverId}
-                                                    onValueChange={(v) => handleStepChange(step.id, "specificApproverId", v)}
-                                                >
-                                                    <SelectTrigger className="h-8 text-xs flex-1">
-                                                        <SelectValue placeholder="Người cụ thể (tùy chọn)" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {approvers.map((a) => (
-                                                            <SelectItem key={a.userId} value={a.userId} className="text-xs">{a.name}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
+                                                {step.requiredRole !== "ADMIN" && (() => {
+                                                    const selectedIds = getSelectedApproverIds(step.id)
+                                                    const availableApprovers = approvers.filter((a) => !selectedIds.includes(a.userId))
+                                                    return (
+                                                        <Select
+                                                            value={step.specificApproverId}
+                                                            onValueChange={(v) => handleStepChange(step.id, "specificApproverId", v)}
+                                                        >
+                                                            <SelectTrigger className="h-8 text-xs flex-1">
+                                                                <SelectValue placeholder="Người cụ thể (tùy chọn)" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {availableApprovers.map((a) => (
+                                                                    <SelectItem key={a.userId} value={a.userId} className="text-xs">{a.name}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    )
+                                                })()}
+                                                {step.requiredRole === "ADMIN" && (
+                                                    <span className="text-xs text-muted-foreground italic flex items-center flex-1">
+                                                        Gửi trực tiếp đến quản trị viên
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                         <button

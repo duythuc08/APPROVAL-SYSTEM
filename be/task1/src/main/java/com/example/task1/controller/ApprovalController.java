@@ -43,6 +43,13 @@ public class ApprovalController {
                 .build();
     }
 
+    @GetMapping("/myApproverHistory")
+    public ApiResponse<Page<ApprovalResponse>> getMyApproverHistory(Pageable pageable) {
+        return ApiResponse.<Page<ApprovalResponse>>builder()
+                .result(approvalService.getMyApproverHistory(pageable))
+                .build();
+    }
+
     @GetMapping("/detail/{approvalRequestId}")
     public ApiResponse<ApprovalResponse> getApprovalRequestDetail(@PathVariable long approvalRequestId) {
         return ApiResponse.<ApprovalResponse>builder()

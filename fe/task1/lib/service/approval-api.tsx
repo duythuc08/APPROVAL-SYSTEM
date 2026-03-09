@@ -50,6 +50,13 @@ export async function getMyRequests(page = 0, size = 5, search = "", status = "A
     return json.result
 }
 
+// APPROVER — Lịch sử đã duyệt/từ chối
+export async function getApproverHistory(page = 0, size = 10): Promise<PagedApprovalResult> {
+    const params = new URLSearchParams({ page: String(page), size: String(size) })
+    const json = await authFetch(`/approval-requests/myApproverHistory?${params}`)
+    return json.result
+}
+
 export async function confirmApprovalRequest(
     id: number, approvalStatus: "APPROVED" | "REJECTED", feedback: string
 ): Promise<void> {

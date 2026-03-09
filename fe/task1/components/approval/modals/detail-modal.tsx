@@ -169,8 +169,28 @@ export function DetailModal({ open, request, onOpenChange }: DetailModalProps) {
                         <WorkflowTimeline request={request} />
                     </div>
 
-                    {/* Request Data (Nếu có dữ liệu khác ngoài description) */}
-                    {request.requestData && Object.keys(request.requestData).filter(k => k !== "description").length > 0 && (
+                    {/* Sản phẩm yêu cầu */}
+                    {request.requestData?.products && Array.isArray(request.requestData.products) && request.requestData.products.length > 0 && (
+                        <>
+                            <Separator />
+                            <div className="space-y-2">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Sản phẩm yêu cầu
+                                </p>
+                                <div className="border rounded-md divide-y">
+                                    {(request.requestData.products as { productId: number; productName: string; quantity: number }[]).map((p) => (
+                                        <div key={p.productId} className="flex items-center justify-between px-3 py-2">
+                                            <span className="text-sm font-medium">{p.productName}</span>
+                                            <Badge variant="secondary" className="text-xs">SL: {p.quantity}</Badge>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {/* Request Data khác (ngoài description và products) */}
+                    {request.requestData && Object.keys(request.requestData).filter(k => k !== "description" && k !== "products").length > 0 && (
                         <>
                             <Separator />
                             <div className="space-y-2">
@@ -180,7 +200,7 @@ export function DetailModal({ open, request, onOpenChange }: DetailModalProps) {
                                 <pre className="text-xs bg-slate-50 p-3 rounded-md overflow-x-auto">
                                     {JSON.stringify(
                                         Object.fromEntries(
-                                            Object.entries(request.requestData).filter(([k]) => k !== "description")
+                                            Object.entries(request.requestData).filter(([k]) => k !== "description" && k !== "products")
                                         ),
                                         null,
                                         2

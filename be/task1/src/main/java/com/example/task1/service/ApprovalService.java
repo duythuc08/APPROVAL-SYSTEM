@@ -209,6 +209,18 @@ public class ApprovalService {
         return toConfirmResponse(approval);
     }
 
+    @PreAuthorize("hasRole('ROLE_APPROVER')")
+    public Page<ApprovalResponse> getMyApproverHistory(Pageable pageable) {
+        Users currentUser = getAuthenticatedUser();
+
+        // Lấy các ApprovalHistory mà approver là user hiện tại
+        Page<ApprovalHistory> historyPage = approvalHistoryRepository
+                .findByApprover_UserIdOrderByDecidedAtDesc(currentUser.getUserId(), pageable);
+
+        // Map sang ApprovalResponse (từ approval request gốc)
+        return historyPage.map(h -> toApprovalResponse(h.getApprovalRequest()));
+    }
+
     // === Private helpers ===
 
     private Users getAuthenticatedUser() {

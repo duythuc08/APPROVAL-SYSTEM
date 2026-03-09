@@ -21,10 +21,29 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Loader2 } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Loader2, Package } from "lucide-react"
 import { creationApprovalRequest } from "@/lib/service/approval-api"
 import { workflowService } from "@/lib/service/workflow-api"
+import { productService } from "@/lib/service/product-api"
 import { WorkflowTemplate } from "@/types/workflow"
+
+interface ProductItem {
+    productId: number
+    productName: string
+    productDescription: string
+    productQuantity: number
+    productType: string
+    ownerName: string
+    department: string
+}
+
+interface SelectedProduct {
+    productId: number
+    productName: string
+    quantity: number
+    maxQuantity: number
+}
 
 interface CreateRequestModalProps {
     open: boolean
@@ -48,13 +67,18 @@ export function CreateRequestModal({ open, onOpenChange, onSuccess }: CreateRequ
     const [templates, setTemplates] = useState<WorkflowTemplate[]>([])
     const [loadingTemplates, setLoadingTemplates] = useState(false)
 
-    // Reset khi đóng modal, fetch templates khi mở
+    const [products, setProducts] = useState<ProductItem[]>([])
+    const [loadingProducts, setLoadingProducts] = useState(false)
+    const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([])
+
+    // Reset khi đóng modal, fetch templates + products khi mở
     useEffect(() => {
         if (!open) {
             setTitle("")
             setDescription("")
             setTemplateId("")
             setError("")
+            setSelectedProducts([])
             return
         }
         const fetchTemplates = async () => {
@@ -68,10 +92,47 @@ export function CreateRequestModal({ open, onOpenChange, onSuccess }: CreateRequ
                 setLoadingTemplates(false)
             }
         }
+        const fetchProducts = async () => {
+            setLoadingProducts(true)
+            try {
+                const res = await productService.getAllProducts()
+                setProducts(res.result ?? [])
+            } catch {
+                setProducts([])
+            } finally {
+                setLoadingProducts(false)
+            }
+        }
         fetchTemplates()
+        fetchProducts()
     }, [open])
 
     const selectedTemplate = templates.find((t) => String(t.id) === templateId)
+    const isSupplyWorkflow = selectedTemplate?.name?.toLowerCase().includes("vật tư") ?? false
+
+    // Khi đổi template, xóa sản phẩm đã chọn nếu không phải quy trình vật tư
+    useEffect(() => {
+        if (!isSupplyWorkflow) setSelectedProducts([])
+    }, [isSupplyWorkflow])
+
+    const toggleProduct = (product: ProductItem) => {
+        setSelectedProducts((prev) => {
+            const exists = prev.find((p) => p.productId === product.productId)
+            if (exists) return prev.filter((p) => p.productId !== product.productId)
+            return [...prev, {
+                productId: product.productId,
+                productName: product.productName,
+                quantity: 1,
+                maxQuantity: product.productQuantity,
+            }]
+        })
+    }
+
+    const updateQuantity = (productId: number, quantity: number) => {
+        setSelectedProducts((prev) =>
+            prev.map((p) => p.productId === productId ? { ...p, quantity } : p)
+        )
+    }
 
     const handleSubmit = async () => {
         if (!title.trim()) {
@@ -86,13 +147,21 @@ export function CreateRequestModal({ open, onOpenChange, onSuccess }: CreateRequ
         setError("")
         setLoading(true)
 
+        const requestData: Record<string, any> = {}
+        if (description.trim()) requestData.description = description
+        if (selectedProducts.length > 0) {
+            requestData.products = selectedProducts.map((p) => ({
+                productId: p.productId,
+                productName: p.productName,
+                quantity: p.quantity,
+            }))
+        }
+
         try {
             await creationApprovalRequest({
                 title,
                 templateId: Number(templateId),
-                requestData: {
-                    description,
-                },
+                requestData,
             })
             onOpenChange(false)
             onSuccess?.()
@@ -181,6 +250,55 @@ export function CreateRequestModal({ open, onOpenChange, onSuccess }: CreateRequ
                             )}
                         </div>
                     )}
+
+                    {/* Chọn sản phẩm — chỉ hiện khi quy trình duyệt vật tư */}
+                    {isSupplyWorkflow && <div className="space-y-1.5">
+                        <Label>
+                            <Package className="w-3.5 h-3.5 inline mr-1" />
+                            Sản phẩm yêu cầu
+                        </Label>
+                        {loadingProducts ? (
+                            <p className="text-sm text-muted-foreground">Đang tải sản phẩm...</p>
+                        ) : products.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">Không có sản phẩm nào.</p>
+                        ) : (
+                            <div className="border rounded-md divide-y max-h-[200px] overflow-y-auto">
+                                {products.map((product) => {
+                                    const selected = selectedProducts.find((p) => p.productId === product.productId)
+                                    return (
+                                        <div key={product.productId} className="flex items-center gap-3 px-3 py-2">
+                                            <Checkbox
+                                                checked={!!selected}
+                                                onCheckedChange={() => toggleProduct(product)}
+                                                className="cursor-pointer"
+                                            />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-medium truncate">{product.productName}</p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Tồn kho: {product.productQuantity} &middot; {product.ownerName}
+                                                </p>
+                                            </div>
+                                            {selected && (
+                                                <Input
+                                                    type="number"
+                                                    min={1}
+                                                    max={product.productQuantity}
+                                                    value={selected.quantity}
+                                                    onChange={(e) => updateQuantity(product.productId, Math.max(1, Math.min(product.productQuantity, Number(e.target.value))))}
+                                                    className="w-20 h-8 text-sm"
+                                                />
+                                            )}
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        )}
+                        {selectedProducts.length > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                                Đã chọn {selectedProducts.length} sản phẩm
+                            </p>
+                        )}
+                    </div>}
 
                     {/* Mô tả */}
                     <div className="space-y-1.5">

@@ -397,6 +397,7 @@ Base URL: `http://localhost:8080/task1`
 | `/dashboard/admin`             | ADMIN    | Trang tong quan admin                 |
 | `/dashboard/admin/users`       | ADMIN    | Quan ly nguoi dung (CRUD)             |
 | `/dashboard/admin/requests`    | ADMIN    | Xem tat ca yeu cau phe duyet          |
+| `/dashboard/admin/workflows`   | ADMIN    | Quan ly quy trinh phe duyet (CRUD)    |
 | `/dashboard/approver`          | APPROVER | Danh sach yeu cau can duyet (PENDING) |
 | `/dashboard/approver/products` | APPROVER | Quan ly san pham cua ban than         |
 | `/dashboard/user`              | USER     | Xem yeu cau phe duyet cua ban than    |
@@ -445,6 +446,11 @@ Base URL: `http://localhost:8080/task1`
 - `modals/review-modal.tsx` - Modal approver duyet/tu choi (nhap feedback)
 - `modals/create-request-modal.tsx` - Modal USER tao yeu cau moi
 
+### Workflow Components (`app/dashboard/admin/workflows/`)
+- `page.tsx` - Trang quan ly quy trinh phe duyet (ADMIN). CRUD workflow template voi cac buoc duyet.
+  - **Loc nguoi da chon**: Khi chon nguoi cu the o 1 buoc, cac buoc khac se khong hien thi nguoi do nua (dung `getSelectedApproverIds` loc ra `availableApprovers`)
+  - **Chon ADMIN role**: Khi vai tro buoc duyet la "Quan tri vien" (ADMIN), an dropdown chon nguoi cu the, hien text "Gui truc tiep den quan tri vien". `specificApproverId` tu dong bi xoa.
+
 ### Page-level Components
 - `app/dashboard/admin/users/create-updateUser.tsx` - Modal tao/sua user (ADMIN)
 - `app/dashboard/approver/products/create-product.tsx` - Modal tao san pham (APPROVER)
@@ -487,6 +493,15 @@ notificationService.getMyNotifications()     → GET /notifications
 notificationService.getUnreadCount()         → GET /notifications/unread-count
 notificationService.markAsRead(id)           → PUT /notifications/{id}/read
 notificationService.markAllAsRead()          → PUT /notifications/read-all
+```
+
+### lib/service/workflow-api.tsx (dung Axios)
+```
+workflowService.getAll()          → GET /workflows
+workflowService.getById(id)       → GET /workflows/{id}
+workflowService.create(data)      → POST /workflows/create
+workflowService.update(id, data)  → PUT /workflows/{id}
+workflowService.delete(id)        → DELETE /workflows/{id}
 ```
 
 ### lib/service/approval-api.tsx (dung Fetch)
@@ -659,6 +674,8 @@ com.example.task1/
 9. **Thong bao cu cho Admin**: Cac thong bao tao TRUOC khi sua `NotificationService` khong co record cho admin trong DB. Chi thong bao MOI tu sau khi deploy moi duoc luu cho admin.
 10. **WebSocket endpoint**: `/ws-notification/**` la public o HTTP level. Auth duoc xu ly o STOMP CONNECT level qua `WebSocketConfig` interceptor (doc token tu STOMP header, validate, set principal).
 11. **Notification `isRead` serialization**: Lombok `@Data` + `boolean isRead` → getter `isRead()` → Jackson serialize thanh `"read"` (bo prefix `is`). FE phai dung `read`, khong phai `isRead`.
+12. **Workflow - Loc nguoi da chon**: Khi chon nguoi cu the (`specificApproverId`) o 1 buoc trong quy trinh, cac buoc khac se loc nguoi do khoi dropdown (tranh trung lap nguoi duyet giua cac buoc).
+13. **Workflow - Vai tro ADMIN**: Khi chon vai tro "Quan tri vien" (ADMIN) cho 1 buoc, dropdown chon nguoi cu the bi an va `specificApproverId` tu dong xoa. Buoc do gui truc tiep den quan tri vien ma khong can chon nguoi duyet cu the.
 
 ---
 

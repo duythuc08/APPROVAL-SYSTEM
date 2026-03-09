@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState,useMemo } from "react"
 import {
     useReactTable,
     getCoreRowModel,
@@ -68,7 +68,10 @@ export function ApprovalTable({ data, role, currentUserName, onDataChange, serve
     // ── Modal state (chỉ còn Create) ──────────────────────────────────────────
     const [createOpen, setCreateOpen] = useState(false)
 
-    const columns = getColumns(role, currentUserName)
+    const columns = useMemo(
+        () => getColumns(role, currentUserName, data),
+        [role, currentUserName, data]
+    )
 
     const pagination: PaginationState = { pageIndex: serverPagination.pageIndex, pageSize: 5 }
 

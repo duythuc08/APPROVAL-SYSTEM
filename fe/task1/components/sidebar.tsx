@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Users, FileCheck, LayoutDashboard, GitBranch } from "lucide-react";
+import { Users, FileCheck, LayoutDashboard, GitBranch, History } from "lucide-react";
 import { productService } from "@/lib/service/product-api";
 import { useUser } from "@/context/UserContext";
 
@@ -16,6 +16,7 @@ const adminMenuItems = [
 
 const baseApproverMenuItems = [
     { name: "Yêu cầu cần duyệt", href: "/dashboard/approver", icon: FileCheck },
+    { name: "Lịch sử hoạt động", href: "/dashboard/approver/history", icon: History },
     { name: "Danh sách sản phẩm", href: "/dashboard/approver/products", icon: LayoutDashboard },
 ];
 

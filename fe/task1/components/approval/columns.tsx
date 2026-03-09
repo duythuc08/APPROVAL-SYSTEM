@@ -33,7 +33,7 @@ const statusConfig: Record<string, {
     },
 }
 
-export function getColumns(role: CurrentRole, currentUserName?: string): ColumnDef<ApprovalRequest>[] {
+export function getColumns(role: CurrentRole, currentUserName?: string, data: ApprovalRequest[] = []): ColumnDef<ApprovalRequest>[] {
 
     const titleColumn: ColumnDef<ApprovalRequest> = {
         accessorKey: "title",
@@ -165,14 +165,28 @@ export function getColumns(role: CurrentRole, currentUserName?: string): ColumnD
         ),
     }
 
+    // 1. Kiểm tra xem có dữ liệu đang chờ nào không
+    const hasPendingRequests = data.some(
+        (item) => item.approvalStatus === "PENDING" && (item.currentApproverName || item.currentStepName)
+    );
+
+    // 2. Thay vì return ngay, ta gán danh sách cột vào biến 'columns'
+    let columns: ColumnDef<ApprovalRequest>[] = [];
+
     if (role === "ADMIN") {
-        return [titleColumn, creatorColumn, progressColumn, currentApproverColumn, statusColumn, actionsColumn]
+        columns = [titleColumn, creatorColumn, progressColumn, currentApproverColumn, statusColumn, actionsColumn];
+    } else if (role === "APPROVER") {
+        columns = [titleColumn, creatorColumn, progressColumn, statusColumn, actionsColumn];
+    } else {
+        // USER
+        columns = [titleColumn, progressColumn, currentApproverColumn, statusColumn, actionsColumn];
     }
 
-    if (role === "APPROVER") {
-        return [titleColumn, creatorColumn, progressColumn, statusColumn, actionsColumn]
+    // 3. Thực hiện lọc bỏ cột "Đang chờ" nếu không có dữ liệu PENDING
+    if (!hasPendingRequests) {
+        columns = columns.filter(col => col.id !== "currentApprover");
     }
 
-    // USER
-    return [titleColumn, progressColumn, statusColumn, actionsColumn]
+    // 4. Cuối cùng mới return kết quả đã qua bộ lọc
+    return columns;
 }
