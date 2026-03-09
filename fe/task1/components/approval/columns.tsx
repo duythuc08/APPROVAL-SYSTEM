@@ -33,7 +33,7 @@ const statusConfig: Record<string, {
     },
 }
 
-export function getColumns(role: CurrentRole): ColumnDef<ApprovalRequest>[] {
+export function getColumns(role: CurrentRole, currentUserName?: string): ColumnDef<ApprovalRequest>[] {
 
     const titleColumn: ColumnDef<ApprovalRequest> = {
         accessorKey: "title",
@@ -159,6 +159,7 @@ export function getColumns(role: CurrentRole): ColumnDef<ApprovalRequest>[] {
             <DataTableRowActions
                 row={row}
                 role={role}
+                currentUserName={currentUserName}
                 onDataChange={(table.options.meta as any)?.onDataChange}
             />
         ),

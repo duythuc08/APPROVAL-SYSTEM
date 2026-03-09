@@ -1,10 +1,7 @@
 "use client"
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { LogOut, User, Settings, ShieldCheck } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
-import { userService } from "@/lib/service/user-api";
+import { LogOut, User, Settings } from "lucide-react";
 import { authService } from "@/lib/service/auth-api";
 import {
     DropdownMenu,
@@ -15,7 +12,8 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {NotificationBell} from "@/components/notifications/NotificationBell";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { useUser } from "@/context/UserContext";
 
 // Component Avatar nhỏ gọn
 function UserAvatar({ name }: { name: string }) {
@@ -28,7 +26,7 @@ function UserAvatar({ name }: { name: string }) {
 
 export function Navbar() {
     const router = useRouter();
-    const [userInfo, setUserInfo] = useState<any>(null);
+    const { userInfo } = useUser();
 
     const handleLogout = async () => {
         const token = localStorage.getItem("token");
@@ -45,29 +43,6 @@ export function Navbar() {
         router.refresh();
     };
 
-    useEffect(() => {
-        const token = localStorage.getItem("token");
-        if (!token) {
-            router.push("/login");
-            return;
-        }
-
-        const fetchUserInfo = async () => {
-            try {
-                const response = await userService.getMyInfo();
-                if (response && response.result) {
-                    setUserInfo(response.result);
-                }
-            } catch (error) {
-                console.error("Failed to fetch user info:", error);
-                handleLogout();
-            }
-        };
-
-        if (!userInfo) {
-            fetchUserInfo();
-        }
-    }, [userInfo, router]);
 
     return (
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

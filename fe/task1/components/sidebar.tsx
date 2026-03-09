@@ -1,8 +1,11 @@
 "use client"
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Users, FileCheck, LayoutDashboard, GitBranch } from "lucide-react";
+import { productService } from "@/lib/service/product-api";
+import { useUser } from "@/context/UserContext";
 
 const adminMenuItems = [
     { name: "Tổng quan", href: "/dashboard/admin", icon: LayoutDashboard },
@@ -11,7 +14,7 @@ const adminMenuItems = [
     { name: "Quản lý người dùng", href: "/dashboard/admin/users", icon: Users },
 ];
 
-const approverMenuItems = [
+const baseApproverMenuItems = [
     { name: "Yêu cầu cần duyệt", href: "/dashboard/approver", icon: FileCheck },
     { name: "Danh sách sản phẩm", href: "/dashboard/approver/products", icon: LayoutDashboard },
 ];
@@ -46,6 +49,20 @@ export function AdminSidebar() {
 
 export function ApproverSidebar() {
     const pathname = usePathname();
+    const { userInfo } = useUser();
+    const [hasProducts, setHasProducts] = useState(false);
+
+    useEffect(() => {
+        if (!userInfo?.userName) return;
+        productService.getProductsByOwner(userInfo.userName)
+            .then((res) => setHasProducts((res.result ?? []).length > 0))
+            .catch(() => setHasProducts(false));
+    }, [userInfo?.userName]);
+
+    const approverMenuItems = baseApproverMenuItems.filter(
+        (item) => item.href !== "/dashboard/approver/products" || hasProducts
+    );
+
     return (
         <aside className="w-64 border-r bg-white h-[calc(100vh-3.5rem)] sticky top-14">
             <div className="p-4 space-y-2">

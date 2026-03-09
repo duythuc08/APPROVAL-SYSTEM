@@ -4,10 +4,12 @@ import { useEffect, useRef, useState } from "react"
 import { ApprovalTable } from "@/components/approval/approval-table"
 import { ApprovalRequest, PagedApprovalResult } from "@/types/approval"
 import { getPendingApprovalRequests } from "@/lib/service/approval-api"
+import { useUser } from "@/context/UserContext"
 
 const PAGE_SIZE = 5
 
 export default function ApproverDashboard() {
+    const { userInfo } = useUser()
     const [data, setData] = useState<ApprovalRequest[]>([])
     const [initialLoading, setInitialLoading] = useState(true)
     const [isFetching, setIsFetching] = useState(false)
@@ -71,6 +73,14 @@ export default function ApproverDashboard() {
         cache.current.clear()
     }
 
+    // Chỉ hiển thị request mà user hiện tại là người được duyệt ở bước này (PENDING),
+    // hoặc request đã hoàn tất (APPROVED/REJECTED) để xem lịch sử
+    const filteredData = userInfo?.name
+        ? data.filter((r) =>
+            r.approvalStatus !== "PENDING" || r.currentApproverName === userInfo.name
+        )
+        : []
+
     if (initialLoading) return <div className="p-8 text-muted-foreground">Đang tải...</div>
 
     return (
@@ -79,8 +89,9 @@ export default function ApproverDashboard() {
                 <h1 className="text-2xl font-bold">Yêu cầu cần duyệt</h1>
             </div>
             <ApprovalTable
-                data={data}
+                data={filteredData}
                 role="APPROVER"
+                currentUserName={userInfo?.name}
                 isFetching={isFetching}
                 onDataChange={() => { cache.current.clear(); fetchData(pageIndex, debouncedSearch) }}
                 serverPagination={{ pageIndex, pageCount, totalElements, onPageChange: setPageIndex }}

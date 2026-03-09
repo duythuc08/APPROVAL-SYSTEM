@@ -23,10 +23,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArchiveX, Loader2, Package } from "lucide-react";
 import { productService } from "@/lib/service/product-api";
-import { userService } from "@/lib/service/user-api";
+import { useUser } from "@/context/UserContext";
 import { CreateProductModal, PRODUCT_TYPES } from "@/app/dashboard/approver/products/create-product";
 
 export default function ProductsManagement() {
+    const { userInfo } = useUser();
     const [products, setProducts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -35,10 +36,8 @@ export default function ProductsManagement() {
 
     const fetchProducts = async () => {
         try {
-
-            const meResponse = await userService.getMyInfo();
-            const ownerUserName = meResponse.result?.userName;
-            if (!ownerUserName) throw new Error("Không lấy được thông tin người dùng.");
+            const ownerUserName = userInfo?.userName;
+            if (!ownerUserName) return;
 
             const response = await productService.getProductsByOwner(ownerUserName);
             setProducts(response.result ?? []);
@@ -51,8 +50,8 @@ export default function ProductsManagement() {
     };
 
     useEffect(() => {
-        fetchProducts();
-    }, []);
+        if (userInfo?.userName) fetchProducts();
+    }, [userInfo?.userName]);
 
     const handleDeleteProduct = async (productId: number) => {
         setDeletingId(productId);
@@ -87,26 +86,25 @@ export default function ProductsManagement() {
 
             {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
 
-            <div className="rounded-md border bg-white p-4 mt-3">
-                <Table>
-                    <TableHeader>
-                        <TableRow className="bg-slate-50">
-                            <TableHead>Tên sản phẩm</TableHead>
-                            <TableHead>Mô tả</TableHead>
-                            <TableHead className="text-center">Tồn kho</TableHead>
-                            <TableHead>Loại sản phẩm</TableHead>
-                            <TableHead className="text-center w-[120px]">Thao tác</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {products.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
-                                    Chưa có sản phẩm nào.
-                                </TableCell>
+            {products.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3 mt-3 rounded-md border bg-white">
+                    <Package className="h-10 w-10 text-slate-300" />
+                    <p className="text-sm">Bạn chưa có sản phẩm nào. Hãy thêm sản phẩm mới!</p>
+                </div>
+            ) : (
+                <div className="rounded-md border bg-white p-4 mt-3">
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="bg-slate-50">
+                                <TableHead>Tên sản phẩm</TableHead>
+                                <TableHead>Mô tả</TableHead>
+                                <TableHead className="text-center">Tồn kho</TableHead>
+                                <TableHead>Loại sản phẩm</TableHead>
+                                <TableHead className="text-center w-[120px]">Thao tác</TableHead>
                             </TableRow>
-                        ) : (
-                            products.map((product) => (
+                        </TableHeader>
+                        <TableBody>
+                            {products.map((product) => (
                                 <TableRow key={product.productId}>
                                     <TableCell className="font-medium">{product.productName}</TableCell>
                                     <TableCell className="text-muted-foreground">{product.productDescription}</TableCell>
@@ -149,11 +147,11 @@ export default function ProductsManagement() {
                                         </AlertDialog>
                                     </TableCell>
                                 </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+            )}
         </div>
     );
 }

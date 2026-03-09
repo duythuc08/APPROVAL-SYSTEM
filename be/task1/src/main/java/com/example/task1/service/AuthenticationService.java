@@ -90,13 +90,22 @@ public class AuthenticationService {
     private SignedJWT verifyToken(String token) throws JOSEException, ParseException {
         JWSVerifier verifier = new MACVerifier(SIGNER_KEY.getBytes());
 
-        SignedJWT signedJWT = SignedJWT.parse(token);
+        // FE may send token as "Bearer <jwt>" in request body.
+        String rawToken = token != null && token.startsWith("Bearer ")
+                ? token.substring(7).trim()
+                : token;
+
+        SignedJWT signedJWT = SignedJWT.parse(rawToken);
 
         Date expirationTime = signedJWT.getJWTClaimsSet().getExpirationTime();
 
         var verified = signedJWT.verify(verifier);
-        if (!verified || expirationTime.after(new Date())) {
+        if (!verified) {
             throw new AppException(ErrorCode.TOKEN_INVALID);
+        }
+
+        if (expirationTime == null || expirationTime.before(new Date())) {
+            throw new AppException(ErrorCode.TOKEN_EXPIRED);
         }
 
         return signedJWT;

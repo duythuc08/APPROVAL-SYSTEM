@@ -52,13 +52,14 @@ interface FilterState {
 interface ApprovalTableProps {
     data: ApprovalRequest[]
     role: CurrentRole
+    currentUserName?: string
     onDataChange?: () => void
     serverPagination: ServerPagination
     isFetching?: boolean
     filterState: FilterState
 }
 
-export function ApprovalTable({ data, role, onDataChange, serverPagination, isFetching, filterState }: ApprovalTableProps) {
+export function ApprovalTable({ data, role, currentUserName, onDataChange, serverPagination, isFetching, filterState }: ApprovalTableProps) {
 
     // ── Table state ────────────────────────────────────────────────────────────
     const [sorting, setSorting]       = useState<SortingState>([])
@@ -67,7 +68,7 @@ export function ApprovalTable({ data, role, onDataChange, serverPagination, isFe
     // ── Modal state (chỉ còn Create) ──────────────────────────────────────────
     const [createOpen, setCreateOpen] = useState(false)
 
-    const columns = getColumns(role)
+    const columns = getColumns(role, currentUserName)
 
     const pagination: PaginationState = { pageIndex: serverPagination.pageIndex, pageSize: 5 }
 

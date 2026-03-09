@@ -6,6 +6,7 @@ import { Navbar } from "@/components/navbar";
 import {AdminSidebar, ApproverSidebar} from "@/components/sidebar";
 import {cn} from "@/lib/utils";
 import {NotificationProvider} from "@/context/NotificationContext";
+import { UserProvider } from "@/context/UserContext";
 import {Toaster} from "@/components/ui/sonner";
 import {useWebSocket} from "@/hooks/useWebSocket";
 import {useNotifications} from "@/context/NotificationContext";
@@ -62,21 +63,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const isApproverRoute = pathname.startsWith("/dashboard/approver");
     return (
         <NotificationProvider>
-            <WebSocketConnector role={role} token={token} />
-            <div className="min-h-screen flex flex-col">
-                <Navbar />
-                <div className="flex flex-1">
-                    {isAdminRoute && <AdminSidebar />}
-                    {isApproverRoute && <ApproverSidebar />}
-                    <main className={cn(
-                        "flex-1 p-6 bg-slate-50/50",
-                        !isAdminRoute && "container mx-auto"
-                    )}>
-                        {children}
-                    </main>
+            <UserProvider>
+                <WebSocketConnector role={role} token={token} />
+                <div className="min-h-screen flex flex-col">
+                    <Navbar />
+                    <div className="flex flex-1">
+                        {isAdminRoute && <AdminSidebar />}
+                        {isApproverRoute && <ApproverSidebar />}
+                        <main className={cn(
+                            "flex-1 p-6 bg-slate-50/50",
+                            !isAdminRoute && "container mx-auto"
+                        )}>
+                            {children}
+                        </main>
+                    </div>
                 </div>
-            </div>
-            <Toaster />
+                <Toaster />
+            </UserProvider>
         </NotificationProvider>
     );
 }

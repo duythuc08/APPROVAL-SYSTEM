@@ -10,14 +10,16 @@ import { DetailModal } from "./modals/detail-modal"
 interface RowActionsProps {
     row: Row<ApprovalRequest>
     role: CurrentRole
+    currentUserName?: string
     onDataChange?: () => void
 }
 
-export function DataTableRowActions({ row, role, onDataChange }: RowActionsProps) {
+export function DataTableRowActions({ row, role, currentUserName, onDataChange }: RowActionsProps) {
     const request = row.original
     const [reviewAction, setReviewAction] = useState<"APPROVED" | "REJECTED" | null>(null)
     const [showDetail, setShowDetail] = useState(false)
     const isPending = request.approvalStatus === "PENDING"
+    const isCurrentApprover = !!currentUserName && request.currentApproverName === currentUserName
 
     return (
         <div className="flex items-center gap-2">
@@ -25,7 +27,7 @@ export function DataTableRowActions({ row, role, onDataChange }: RowActionsProps
                 Chi tiết
             </Button>
 
-            {role === "APPROVER" && isPending && (
+            {role === "APPROVER" && isPending && isCurrentApprover && (
                 <>
                     <Button
                         size="sm"
