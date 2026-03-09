@@ -35,6 +35,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             const unread = all.filter((n: Notification) => !n.read).length;
             if (unread > 0) {
                 toast.info(`Bạn có ${unread} thông báo mới chưa đọc`);
+            } else if (all.length > 0) {
+                toast("Không có thông báo mới");
             }
         } catch (e) {
             console.error("Failed to load notifications:", e);

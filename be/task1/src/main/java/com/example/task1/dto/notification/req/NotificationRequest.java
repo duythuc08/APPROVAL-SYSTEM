@@ -11,5 +11,6 @@ import lombok.NoArgsConstructor;
 public class NotificationRequest {
     private String recipient;
     private String content;
+    private String adminContent;
     private NotificationType notificationType;
 }

@@ -41,16 +41,23 @@ public class NotificationService {
             // Tranh gui trung neu admin cung la nguoi nhan chinh
             if (admin.getUserName().equals(notificationRequest.getRecipient())) continue;
 
+            String adminMsg = notificationRequest.getAdminContent() != null
+                    ? notificationRequest.getAdminContent()
+                    : notificationRequest.getContent();
             Notification adminNoti = createNotification(
                     admin.getUserName(),
-                    notificationRequest.getContent(),
+                    adminMsg,
                     notificationRequest.getNotificationType()
             );
             notificationRepository.save(adminNoti);
         }
 
-        // 3. Broadcast real-time cho tat ca admin dang online
-        messagingTemplate.convertAndSend("/topic/admin-notifications", notification);
+        // 3. Broadcast real-time cho tat ca admin dang online (dung noi dung admin)
+        String broadcastMsg = notificationRequest.getAdminContent() != null
+                ? notificationRequest.getAdminContent()
+                : notificationRequest.getContent();
+        Notification adminBroadcast = createNotification("ADMIN_BROADCAST", broadcastMsg, notificationRequest.getNotificationType());
+        messagingTemplate.convertAndSend("/topic/admin-notifications", adminBroadcast);
     }
 
     public List<Notification> getMyNotifications() {

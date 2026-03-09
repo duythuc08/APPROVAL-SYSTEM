@@ -30,13 +30,16 @@ Task 1/
 - React 19
 - TypeScript 5
 - TailwindCSS 4
-- shadcn/ui (Button, Table, Dialog, Badge, AlertDialog, DropdownMenu, Form...)
-- Axios (goi API User, Product)
+- shadcn/ui (Button, Table, Dialog, Badge, AlertDialog, DropdownMenu, Form, Popover...)
+- Axios (goi API User, Product, Notification)
 - Fetch API (goi API Approval)
 - React Hook Form + Zod (validation form)
 - TanStack React Table 8 (bang du lieu)
 - jwt-decode (doc role tu token o client)
 - lucide-react (icons)
+- @stomp/stompjs + sockjs-client (WebSocket real-time notification)
+- sonner (toast notification)
+- date-fns (format thoi gian tuong doi)
 
 ---
 
@@ -138,6 +141,19 @@ jwt:
 - `idx_ar_approver` — tren cot `currentApprover`
 - `idx_ar_created` — tren cot `createdAt`
 
+### notifications
+| Field     | Type             | Mo ta                                    |
+|-----------|------------------|------------------------------------------|
+| id        | Long PK          | Tu sinh IDENTITY                         |
+| message   | String           | (unused — legacy field)                  |
+| recipient | String           | Username nguoi nhan (hoac admin username) |
+| content   | String           | Noi dung thong bao                       |
+| type      | NotificationType | Loai thong bao (enum)                    |
+| isRead    | boolean          | Trang thai da doc (default false)        |
+| createdAt | LocalDateTime    | Thoi diem tao (default now())            |
+
+**Luu y:** Moi thong bao duoc luu rieng cho tung nguoi nhan. Khi co event, he thong tao 1 record cho nguoi nhan chinh (approver/creator) + 1 record rieng cho moi admin. Moi nguoi co `isRead` state doc lap.
+
 ### invalidated_tokens
 | Field      | Type   | Mo ta                           |
 |------------|--------|---------------------------------|
@@ -154,6 +170,7 @@ enum Department   { MARKETING, SALES, GENERAL_ADMINISTRATION, PROCUREMENT_FACILI
                     HUMAN_RESOURCE, SECURITY_TEAM, TECHNICAL_TEAM }
 enum ProductType  { OFFICE_SUPPLIES, OFFICE_EQUIPMENT, UNIFORM_PPE }
 enum ApprovalRequestsStatus { PENDING, APPROVED, REJECTED }
+enum NotificationType       { NEW_REQUEST, REQUEST_APPROVED, REQUEST_REJECTED }
 ```
 
 ---
@@ -311,13 +328,57 @@ Base URL: `http://localhost:8080/task1`
 
 ---
 
+### Notifications (/notifications) - Can JWT
+
+| Method | URL                        | Role     | Mo ta                           |
+|--------|----------------------------|----------|---------------------------------|
+| GET    | /notifications             | Bat ki   | Lay tat ca thong bao cua minh   |
+| GET    | /notifications/unread-count| Bat ki   | Dem so thong bao chua doc       |
+| PUT    | /notifications/{id}/read   | Bat ki   | Danh dau 1 thong bao da doc    |
+| PUT    | /notifications/read-all    | Bat ki   | Danh dau tat ca da doc         |
+
+**Notification Response (trong list):**
+```json
+{
+  "id": 1,
+  "recipient": "admin1",
+  "content": "You have a new approval request from user1: Yeu cau vat tu",
+  "type": "NEW_REQUEST",
+  "read": false,
+  "createdAt": "2026-03-09T10:30:00"
+}
+```
+
+**Luu y Jackson serialization:** Entity dung `boolean isRead` voi Lombok `@Data` → getter la `isRead()` → Jackson serialize thanh `"read"` (bo prefix `is`). FE phai dung field name `read`, khong phai `isRead`.
+
+---
+
+### WebSocket - Real-time Notifications
+
+**Endpoint:** `ws://localhost:8080/task1/ws-notification` (SockJS)
+
+**STOMP Connect:** Gui header `Authorization: Bearer <token>`. BE validate token trong `WebSocketConfig` interceptor, set username lam principal.
+
+**Subscribe channels:**
+| Channel                        | Ai subscribe | Mo ta                              |
+|--------------------------------|--------------|------------------------------------|
+| `/topic/admin-notifications`   | ADMIN        | Broadcast moi thong bao (real-time)|
+| `/user/queue/notifications`    | Tat ca       | Thong bao ca nhan (theo username)  |
+
+**Luong gui thong bao (NotificationService.send):**
+1. Luu notification vao DB cho nguoi nhan chinh (approver hoac creator)
+2. Luu rieng 1 record cho moi admin (moi admin co `isRead` state doc lap)
+3. Gui real-time qua WebSocket: broadcast `/topic/admin-notifications` + user-specific `/user/queue/notifications`
+
+---
+
 ## Luong Bao Mat (Security)
 
 1. User POST `/auth/login` → nhan JWT (HS512, het han sau 1 gio)
 2. JWT chua `scope` claim voi gia tri nhu `ROLE_ADMIN`, `ROLE_USER`, `ROLE_APPROVER` (nhieu role ngan cach nhau bang dau phay)
 3. Moi request tiep theo phai gui header: `Authorization: Bearer <token>`
 4. `SecurityConfig` cau hinh:
-   - `/auth/login` va `/auth/logout` la public
+   - `/auth/login`, `/auth/logout`, `/ws-notification/**` la public (WebSocket auth xu ly o STOMP level)
    - Con lai yeu cau authenticated
    - Dung `JwtGrantedAuthoritiesConverter` voi `authorityPrefix = ""` va `authoritiesClaimName = "scope"`
 5. Phan quyen tai tang Service dung `@PreAuthorize("hasRole('ROLE_ADMIN')")`
@@ -366,8 +427,14 @@ Base URL: `http://localhost:8080/task1`
 ## Frontend - Components Chinh
 
 ### Layout Components
-- `components/navbar.tsx` - Thanh nav co ten app "APPROVAL SYSTEM", avatar user, dropdown logout
+- `components/navbar.tsx` - Thanh nav co ten app "APPROVAL SYSTEM", avatar user, dropdown logout, **NotificationBell**
 - `components/sidebar.tsx` - `AdminSidebar` (3 muc menu) va `ApproverSidebar` (2 muc menu)
+- `app/dashboard/layout.tsx` - Bao ve route, **NotificationProvider** boc toan bo, **WebSocketConnector** ket noi WebSocket + load thong bao cu tu DB khi dang nhap
+
+### Notification Components (`components/notifications/`)
+- `NotificationBell.tsx` - Chuong thong bao tren navbar: badge so chua doc, popover danh sach thong bao, click 1 thong bao de doc, nut "Doc tat ca", tag loai (Yeu cau moi/Da duyet/Tu choi), thoi gian tuong doi
+- `context/NotificationContext.tsx` - Context quan ly state thong bao: `notifications[]`, `addNotification`, `markOneRead(id)`, `markAllRead`, `loadNotifications` (goi REST API load tu DB)
+- `hooks/useWebSocket.tsx` - Hook ket noi STOMP/SockJS, subscribe channels theo role, nhan thong bao real-time va hien toast
 
 ### Approval Components (`components/approval/`)
 - `approval-table.tsx` - Bang hien thi danh sach yeu cau, dung TanStack React Table; **server-side pagination bat buoc** — khong co globalFilter/columnFilters noi bo
@@ -412,6 +479,14 @@ productService.getAllProducts()              → GET /products
 productService.getProductsByOwner(username) → GET /products/department/{username}
 productService.createProduct(data)          → POST /products/create
 productService.deleteProductById(id)        → DELETE /products/delete/{id}
+```
+
+### lib/service/notification-api.tsx (dung Axios)
+```
+notificationService.getMyNotifications()     → GET /notifications
+notificationService.getUnreadCount()         → GET /notifications/unread-count
+notificationService.markAsRead(id)           → PUT /notifications/{id}/read
+notificationService.markAllAsRead()          → PUT /notifications/read-all
 ```
 
 ### lib/service/approval-api.tsx (dung Fetch)
@@ -461,31 +536,36 @@ Moi API tra ve dang:
 com.example.task1/
 ├── Task1Application.java
 ├── configuration/
-│   ├── SecurityConfig.java       # JWT decoder, filter chain, CORS
+│   ├── SecurityConfig.java       # JWT decoder, filter chain, CORS + validateToken/getUsernameFromToken (dung cho WebSocket)
 │   ├── CustomJwtDecoder.java     # (dang comment) Custom decoder kiem tra blacklist
-│   └── WebConfig.java            # CORS config
+│   ├── WebConfig.java            # CORS config
+│   └── WebSocketConfig.java      # STOMP/SockJS config, JWT auth interceptor cho WebSocket CONNECT
 ├── controller/
 │   ├── AuthenticationController.java  # /auth/login, /auth/logout
 │   ├── UserController.java            # /users/**
 │   ├── ProductController.java         # /products/**
-│   └── ApprovalController.java        # /approval-requests/**
+│   ├── ApprovalController.java        # /approval-requests/**
+│   └── NotificationController.java    # /notifications/** (GET, PUT mark read)
 ├── service/
 │   ├── AuthenticationService.java     # Xac thuc, tao JWT, logout
 │   ├── UserService.java               # CRUD user
 │   ├── ProductService.java            # CRUD product
-│   └── ApprovalService.java           # Tao/duyet yeu cau
+│   ├── ApprovalService.java           # Tao/duyet yeu cau (goi NotificationService.send)
+│   └── NotificationService.java       # Gui thong bao (luu DB + WebSocket), query, mark read
 ├── entity/
 │   ├── Users.java
 │   ├── Roles.java
 │   ├── Products.java
 │   ├── ApprovalRequests.java
-│   └── InvalidatedToken.java
+│   ├── InvalidatedToken.java
+│   └── Notification.java             # Entity thong bao (recipient, content, type, isRead, createdAt)
 ├── repository/
 │   ├── UserRepository.java
 │   ├── RoleRepository.java
 │   ├── ProductRepository.java
 │   ├── ApprovalRequestRepository.java
-│   └── InvalidatedRepository.java
+│   ├── InvalidatedRepository.java
+│   └── NotificationRepository.java   # findByRecipient, countByRecipientAndIsRead
 ├── mapper/
 │   ├── UserMapper.java            # MapStruct
 │   └── ProductMapper.java         # MapStruct
@@ -500,17 +580,21 @@ com.example.task1/
 │   ├── product/
 │   │   ├── req/ProductRequest.java
 │   │   └── res/ProductResponse.java
-│   └── approvalRequest/
-│       ├── req/ApprovalCreationRequest.java, ApprovalConfirmRequest.java
-│       └── res/ApprovalResponse.java, ApprovalConfirmResponse.java
+│   ├── approvalRequest/
+│   │   ├── req/ApprovalCreationRequest.java, ApprovalConfirmRequest.java
+│   │   └── res/ApprovalResponse.java, ApprovalConfirmResponse.java
+│   └── notification/
+│       └── req/NotificationRequest.java   # recipient, content, notificationType
 ├── enums/
 │   ├── Role.java
 │   ├── Department.java
 │   ├── ProductType.java
-│   └── ApprovalRequestsStatus.java
+│   ├── ApprovalRequestsStatus.java
+│   └── NotificationType.java             # NEW_REQUEST, REQUEST_APPROVED, REQUEST_REJECTED
 └── exception/
     ├── AppException.java
-    └── ErrorCode.java
+    ├── ErrorCode.java                     # Them NOTIFICATION_NOT_FOUND(6001), UNAUTHORIZED(7001)
+    └── GlobalExceptionHandler.java
 ```
 
 ---
@@ -534,6 +618,15 @@ com.example.task1/
 1. Xem tat ca yeu cau tai `/dashboard/admin/requests`
 2. CRUD nguoi dung tai `/dashboard/admin/users`
 3. Tao user voi cac role: ADMIN, USER, APPROVER, va assign phong ban
+4. Nhan thong bao moi event (tao yeu cau, duyet/tu choi) — luu rieng trong DB cho moi admin
+
+### He thong thong bao (Notification)
+1. **Khi USER tao yeu cau:** Gui thong bao cho Approver duoc chon + tat ca Admin
+2. **Khi APPROVER duyet/tu choi:** Gui thong bao cho User tao yeu cau + tat ca Admin
+3. **Real-time:** WebSocket STOMP/SockJS gui ngay lap tuc + hien toast
+4. **Khi dang nhap:** Load thong bao cu tu DB, hien toast "Ban co X thong bao moi chua doc"
+5. **Doc thong bao:** Click vao 1 thong bao de doc (PUT `/notifications/{id}/read`) hoac "Doc tat ca" (PUT `/notifications/read-all`)
+6. **Moi nguoi co `isRead` rieng:** Admin, Approver, User deu co record thong bao rieng trong DB
 
 ---
 
@@ -563,6 +656,9 @@ com.example.task1/
 6. **`@Filter` (SpringFilter)** phai duoc dat o tham so Controller (`@Filter Specification<ApprovalRequests> spec`), khong phai tang Service. Neu thieu annotation nay se gay `IllegalStateException` luc runtime.
 7. **Specification + collections**: khong dung `JOIN FETCH` voi Pageable (gay `HibernateException: firstResult/maxResults specified with collection fetch`). Thay vao do dung `@BatchSize` de load collections.
 8. **APPROVER endpoint** (`/myApprover`): BE da tu AND dieu kien `status = PENDING`, FE khong can truyen `status` vao filter.
+9. **Thong bao cu cho Admin**: Cac thong bao tao TRUOC khi sua `NotificationService` khong co record cho admin trong DB. Chi thong bao MOI tu sau khi deploy moi duoc luu cho admin.
+10. **WebSocket endpoint**: `/ws-notification/**` la public o HTTP level. Auth duoc xu ly o STOMP CONNECT level qua `WebSocketConfig` interceptor (doc token tu STOMP header, validate, set principal).
+11. **Notification `isRead` serialization**: Lombok `@Data` + `boolean isRead` → getter `isRead()` → Jackson serialize thanh `"read"` (bo prefix `is`). FE phai dung `read`, khong phai `isRead`.
 
 ---
 
@@ -574,3 +670,10 @@ com.example.task1/
 | `HibernateException: firstResult/maxResults` | Dung `JOIN FETCH` voi collections trong Pageable query | Bo `JOIN FETCH`, them `@BatchSize` tren field collection |
 | N+1 query khi load danh sach approval | `creatorUser`/`currentApprover` la LAZY | Doi sang EAGER cho 2 field nay |
 | APPROVER thay yeu cau sai status | FE truyen them `status` filter vao `/myApprover` | Bo filter status o FE, de BE tu xu ly `AND status=PENDING` |
+| FE: Navbar dung `{children}` khong co prop | `NotificationProvider` + `{children}` dat nham trong Navbar | Chuyen `NotificationProvider` sang `layout.tsx`, Navbar chi render `<NotificationBell />` |
+| FE: WebSocket khong ket noi | `useWebSocket` hook duoc tao nhung khong bao gio goi | Tao `WebSocketConnector` component trong `layout.tsx` de goi hook |
+| FE: WebSocket URL sai | FE goi `/ws-notification` nhung BE co context-path `/task1` | Sua URL thanh `/task1/ws-notification` |
+| FE: Admin role check sai | Hook kiem tra `role === 'ADMIN'` nhung JWT scope la `ROLE_ADMIN` | Sua thanh `role === 'ROLE_ADMIN'` |
+| FE: JSON field name mismatch | FE dung `isRead`/`NotificationType`, BE serialize thanh `read`/`type` | Sua FE interface dung `read` va `type` |
+| Admin khong nhan thong bao | `NotificationService.send()` chi luu record cho approver/creator | Them logic luu rieng 1 record cho moi admin trong `send()` |
+| Admin mat thong bao khi refresh | Chi gui broadcast real-time, khong luu vao DB cho admin | Luu notification record rieng cho admin + load tu DB khi dang nhap |

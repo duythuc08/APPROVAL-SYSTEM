@@ -100,10 +100,14 @@ public class ApprovalService {
 
         NotificationRequest notificationRequest = new NotificationRequest();
         notificationRequest.setRecipient(newApproval.getCurrentApprover().getUserName());
-        notificationRequest.setContent("You have a new approval request from " + newApproval.getCreatorUser().getName()
-                                        + ": " + newApproval.getTitle());
+        notificationRequest.setContent("Bạn có yêu cầu phê duyệt mới \"" + newApproval.getTitle()
+                + "\" từ " + newApproval.getCreatorUser().getName());
+        notificationRequest.setAdminContent(newApproval.getCreatorUser().getName()
+                + " đã gửi yêu cầu \"" + newApproval.getTitle()
+                + "\" cho " + newApproval.getCurrentApprover().getName());
         notificationRequest.setNotificationType(NotificationType.NEW_REQUEST);
         notificationService.send(notificationRequest);
+
         return approvalRequestMapper.toApprovalResponse(approvalRequestRepository.save(newApproval));
     }
 
@@ -136,11 +140,20 @@ public class ApprovalService {
 
         NotificationRequest notificationRequest = new NotificationRequest();
         notificationRequest.setRecipient(approvalRequest.getCreatorUser().getUserName());
-        notificationRequest.setContent("Your approval request '" + approvalRequest.getTitle() + "' has been " + approvalRequest.getApprovalStatus().toLowerCase()
-                + "by " + approvalRequest.getCurrentApprover().getName() + ". Feedback: " + approvalRequest.getFeedback());
-        if (ApprovalRequestsStatus.APPROVED.name().equals(approvalRequest.getApprovalStatus())) {
+
+        String title = approvalRequest.getTitle();
+        String approverName = approvalRequest.getCurrentApprover().getName();
+        String creatorName = approvalRequest.getCreatorUser().getName();
+        String feedback = approvalRequest.getFeedback();
+        boolean isApproved = ApprovalRequestsStatus.APPROVED.name().equals(approvalRequest.getApprovalStatus());
+
+        if (isApproved) {
+            notificationRequest.setContent("Yêu cầu \"" + title + "\" đã được " + approverName + " phê duyệt ");
+            notificationRequest.setAdminContent(approverName + " đã phê duyệt yêu cầu \"" + title + "\" của " + creatorName);
             notificationRequest.setNotificationType(NotificationType.REQUEST_APPROVED);
         } else {
+            notificationRequest.setContent("Yêu cầu \"" + title + "\" đã bị " + approverName + " từ chối");
+            notificationRequest.setAdminContent(approverName + " đã từ chối yêu cầu \"" + title + "\" của " + creatorName);
             notificationRequest.setNotificationType(NotificationType.REQUEST_REJECTED);
         }
         notificationService.send(notificationRequest);
