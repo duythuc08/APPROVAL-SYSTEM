@@ -1,7 +1,7 @@
 "use client"
-import React from "react";
+import React, {useState} from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, User, Settings } from "lucide-react";
+import {LogOut, User, Settings, InfoIcon} from "lucide-react";
 import { authService } from "@/lib/service/auth-api";
 import {
     DropdownMenu,
@@ -12,6 +12,11 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+    Alert,
+    AlertDescription,
+    AlertTitle,
+} from "@/components/ui/alert"
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useUser } from "@/context/UserContext";
 
@@ -27,14 +32,14 @@ function UserAvatar({ name }: { name: string }) {
 export function Navbar() {
     const router = useRouter();
     const { userInfo } = useUser();
-
+    const [error, setError] = useState<string | null>(null);
     const handleLogout = async () => {
         const token = localStorage.getItem("token");
         if (token) {
             try {
                 await authService.logout(token);
             } catch (error) {
-                console.error("Logout BE failed:", error);
+                setError("Đăng xuất thất bại, vui lòng thử lại.");
             }
         }
         localStorage.removeItem("token");
@@ -46,6 +51,14 @@ export function Navbar() {
 
     return (
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+                {error && (
+                    <Alert>
+                        <InfoIcon/>
+                        <AlertTitle>Thông báo</AlertTitle>
+                        <AlertDescription>
+                            {error}
+                        </AlertDescription>
+                    </Alert>)}
             <div className="container mx-auto flex h-14 items-center justify-between px-8">
                 {/* Bên trái: Tên dự án */}
                 <div className="flex items-center gap-2">
@@ -53,7 +66,6 @@ export function Navbar() {
                         APPROVAL SYSTEM
                     </span>
                 </div>
-
                 {/* Bên phải: User Menu */}
                 <div className="flex items-center gap-4">
                     {userInfo ? (

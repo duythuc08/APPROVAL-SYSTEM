@@ -3,7 +3,9 @@ export interface WorkflowStep {
     stepOrder: number
     stepName: string
     requiredRole: string | null
+    specificApproverId: string | null
     specificApproverName: string | null
+    specificApproverUserName: string | null
 }
 
 export interface WorkflowTemplate {

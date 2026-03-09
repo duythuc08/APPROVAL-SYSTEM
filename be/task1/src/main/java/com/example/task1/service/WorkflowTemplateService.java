@@ -130,8 +130,14 @@ public class WorkflowTemplateService {
         res.setStepOrder(step.getStepOrder());
         res.setStepName(step.getStepName());
         res.setRequiredRole(step.getRequiredRole() != null ? step.getRequiredRole().name() : null);
+        res.setSpecificApproverId(
+                step.getSpecificApprover() != null ? step.getSpecificApprover().getUserId() : null
+        );
         res.setSpecificApproverName(
                 step.getSpecificApprover() != null ? step.getSpecificApprover().getName() : null
+        );
+        res.setSpecificApproverUserName(
+                step.getSpecificApprover() != null ? step.getSpecificApprover().getUserName() : null
         );
         return res;
     }

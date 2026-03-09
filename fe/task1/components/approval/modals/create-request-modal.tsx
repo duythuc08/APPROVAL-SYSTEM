@@ -71,7 +71,7 @@ export function CreateRequestModal({ open, onOpenChange, onSuccess }: CreateRequ
     const [loadingProducts, setLoadingProducts] = useState(false)
     const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([])
 
-    // Reset khi đóng modal, fetch templates + products khi mở
+    // Reset khi đóng modal, fetch templates khi mở
     useEffect(() => {
         if (!open) {
             setTitle("")
@@ -79,6 +79,7 @@ export function CreateRequestModal({ open, onOpenChange, onSuccess }: CreateRequ
             setTemplateId("")
             setError("")
             setSelectedProducts([])
+            setProducts([])
             return
         }
         const fetchTemplates = async () => {
@@ -92,28 +93,51 @@ export function CreateRequestModal({ open, onOpenChange, onSuccess }: CreateRequ
                 setLoadingTemplates(false)
             }
         }
-        const fetchProducts = async () => {
+        fetchTemplates()
+    }, [open])
+
+    const selectedTemplate = templates.find((t) => String(t.id) === templateId)
+    const isSupplyWorkflow = selectedTemplate?.name?.toLowerCase().includes("thiết bị") ?? false
+    console.log("Selected template:", selectedTemplate)
+    console.log("Is supply workflow:", isSupplyWorkflow)
+    // Khi đổi template: xóa sản phẩm đã chọn + load sản phẩm theo approver trong quy trình
+    useEffect(() => {
+        setSelectedProducts([])
+        if (!isSupplyWorkflow || !selectedTemplate) {
+            setProducts([])
+            return
+        }
+
+        // Lấy danh sách username approver từ các bước duyệt
+        const approverNames = selectedTemplate.steps
+            .map((step) => step.specificApproverUserName)
+            .filter((name): name is string => !!name)
+
+        if (approverNames.length === 0) {
+            setProducts([])
+            return
+        }
+
+        const fetchProductsByApprovers = async () => {
             setLoadingProducts(true)
             try {
-                const res = await productService.getAllProducts()
-                setProducts(res.result ?? [])
+                const results = await Promise.all(
+                    approverNames.map((name) => productService.getProductsByOwner(name))
+                )
+                const allProducts = results.flatMap((res) => res.result ?? [])
+                // Loại trùng theo productId
+                const unique = allProducts.filter(
+                    (p, i, arr) => arr.findIndex((x) => x.productId === p.productId) === i
+                )
+                setProducts(unique)
             } catch {
                 setProducts([])
             } finally {
                 setLoadingProducts(false)
             }
         }
-        fetchTemplates()
-        fetchProducts()
-    }, [open])
-
-    const selectedTemplate = templates.find((t) => String(t.id) === templateId)
-    const isSupplyWorkflow = selectedTemplate?.name?.toLowerCase().includes("vật tư") ?? false
-
-    // Khi đổi template, xóa sản phẩm đã chọn nếu không phải quy trình vật tư
-    useEffect(() => {
-        if (!isSupplyWorkflow) setSelectedProducts([])
-    }, [isSupplyWorkflow])
+        fetchProductsByApprovers()
+    }, [templateId, isSupplyWorkflow])
 
     const toggleProduct = (product: ProductItem) => {
         setSelectedProducts((prev) => {
@@ -220,38 +244,7 @@ export function CreateRequestModal({ open, onOpenChange, onSuccess }: CreateRequ
                         </Select>
                     </div>
 
-                    {/* Hiển thị các bước của quy trình đã chọn */}
-                    {selectedTemplate && (
-                        <div className="space-y-2">
-                            <Label>Các bước duyệt</Label>
-                            <div className="border rounded-md divide-y">
-                                {selectedTemplate.steps.map((step) => (
-                                    <div key={step.id} className="flex items-center gap-3 px-3 py-2">
-                                        <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold shrink-0">
-                                            {step.stepOrder}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium">{step.stepName}</p>
-                                        </div>
-                                        {step.specificApproverName ? (
-                                            <Badge variant="secondary" className="text-xs shrink-0">
-                                                {step.specificApproverName}
-                                            </Badge>
-                                        ) : step.requiredRole ? (
-                                            <Badge variant="outline" className="text-xs shrink-0">
-                                                {ROLE_LABELS[step.requiredRole] ?? step.requiredRole}
-                                            </Badge>
-                                        ) : null}
-                                    </div>
-                                ))}
-                            </div>
-                            {selectedTemplate.description && (
-                                <p className="text-xs text-muted-foreground italic">{selectedTemplate.description}</p>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Chọn sản phẩm — chỉ hiện khi quy trình duyệt vật tư */}
+                    {/* Chọn sản phẩm — chỉ hiện khi quy trình duyệt vật tư (đặt TRƯỚC bước duyệt để user thấy ngưỡng) */}
                     {isSupplyWorkflow && <div className="space-y-1.5">
                         <Label>
                             <Package className="w-3.5 h-3.5 inline mr-1" />
@@ -299,6 +292,37 @@ export function CreateRequestModal({ open, onOpenChange, onSuccess }: CreateRequ
                             </p>
                         )}
                     </div>}
+
+                    {/* Hiển thị các bước của quy trình đã chọn */}
+                    {selectedTemplate && (
+                        <div className="space-y-2">
+                            <Label>Các bước duyệt</Label>
+                            <div className="border rounded-md divide-y">
+                                {selectedTemplate.steps.map((step) => (
+                                    <div key={step.id} className="flex items-center gap-3 px-3 py-2">
+                                        <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold shrink-0">
+                                            {step.stepOrder}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium">{step.stepName}</p>
+                                        </div>
+                                        {step.specificApproverName ? (
+                                            <Badge variant="secondary" className="text-xs shrink-0">
+                                                {step.specificApproverName}
+                                            </Badge>
+                                        ) : step.requiredRole ? (
+                                            <Badge variant="outline" className="text-xs shrink-0">
+                                                {ROLE_LABELS[step.requiredRole] ?? step.requiredRole}
+                                            </Badge>
+                                        ) : null}
+                                    </div>
+                                ))}
+                            </div>
+                            {selectedTemplate.description && (
+                                <p className="text-xs text-muted-foreground italic">{selectedTemplate.description}</p>
+                            )}
+                        </div>
+                    )}
 
                     {/* Mô tả */}
                     <div className="space-y-1.5">

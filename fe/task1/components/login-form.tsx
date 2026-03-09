@@ -28,7 +28,8 @@ interface DecodedToken{
     "jti": string,
     "scope": string
 }
-
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircleIcon } from "lucide-react"
 export function LoginForm({
   className,
   ...props
@@ -77,8 +78,7 @@ export function LoginForm({
             }
 
         } catch (err: any) {
-            console.error("Login failed", err);
-            setError(err.message || "Login failed");
+            setError("Tài khoản hoặc mật khẩu không đúng. Vui lòng thử lại.");
         } finally {
             setLoading(false);
         }

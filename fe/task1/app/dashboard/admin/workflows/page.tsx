@@ -77,7 +77,6 @@ export default function WorkflowManagement() {
     const [steps, setSteps] = useState<StepForm[]>([])
     const [formError, setFormError] = useState("")
     const [saving, setSaving] = useState(false)
-
     const [approvers, setApprovers] = useState<Approver[]>([])
 
     const fetchTemplates = async () => {
@@ -124,7 +123,7 @@ export default function WorkflowManagement() {
                 stepOrder: s.stepOrder,
                 stepName: s.stepName,
                 requiredRole: s.requiredRole ?? "",
-                specificApproverId: "",
+                specificApproverId: s.specificApproverId ?? "",
             }))
         )
         setFormError("")
@@ -185,8 +184,8 @@ export default function WorkflowManagement() {
             steps: steps.map((s) => ({
                 stepOrder: s.stepOrder,
                 stepName: s.stepName,
-                requiredRole: s.requiredRole || undefined,
-                specificApproverId: s.specificApproverId || undefined,
+                requiredRole: s.requiredRole || "",
+                specificApproverId: s.specificApproverId || "",
             })),
         }
 
