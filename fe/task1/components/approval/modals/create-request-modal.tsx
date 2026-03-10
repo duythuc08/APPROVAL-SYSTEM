@@ -43,6 +43,7 @@ interface SelectedProduct {
     productName: string
     quantity: number
     maxQuantity: number
+    productType: string,
 }
 
 interface CreateRequestModalProps {
@@ -98,8 +99,6 @@ export function CreateRequestModal({ open, onOpenChange, onSuccess }: CreateRequ
 
     const selectedTemplate = templates.find((t) => String(t.id) === templateId)
     const isSupplyWorkflow = selectedTemplate?.name?.toLowerCase().includes("thiết bị") ?? false
-    console.log("Selected template:", selectedTemplate)
-    console.log("Is supply workflow:", isSupplyWorkflow)
     // Khi đổi template: xóa sản phẩm đã chọn + load sản phẩm theo approver trong quy trình
     useEffect(() => {
         setSelectedProducts([])
@@ -148,6 +147,7 @@ export function CreateRequestModal({ open, onOpenChange, onSuccess }: CreateRequ
                 productName: product.productName,
                 quantity: 1,
                 maxQuantity: product.productQuantity,
+                productType: product.productType,
             }]
         })
     }
@@ -178,6 +178,7 @@ export function CreateRequestModal({ open, onOpenChange, onSuccess }: CreateRequ
                 productId: p.productId,
                 productName: p.productName,
                 quantity: p.quantity,
+                productType: p.productType
             }))
         }
 

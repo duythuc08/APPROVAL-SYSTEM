@@ -13,6 +13,7 @@ import com.example.task1.exception.AppException;
 import com.example.task1.exception.ErrorCode;
 import com.example.task1.repository.ApprovalHistoryRepository;
 import com.example.task1.repository.ApprovalRequestRepository;
+import com.example.task1.repository.ProductRepository;
 import com.example.task1.repository.UserRepository;
 import com.example.task1.repository.WorkflowTemplateRepository;
 import jakarta.transaction.Transactional;
@@ -27,6 +28,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -36,6 +38,7 @@ public class ApprovalService {
     private final UserRepository userRepository;
     private final WorkflowTemplateRepository workflowTemplateRepository;
     private final ApprovalHistoryRepository approvalHistoryRepository;
+    private final ProductRepository productRepository;
     private final NotificationService notificationService;
 
     @PreAuthorize("hasRole('ROLE_ADMIN')")
@@ -79,6 +82,37 @@ public class ApprovalService {
         return toApprovalResponse(request);
     }
 
+    @SuppressWarnings("unchecked")
+    private boolean isEligibleForAutoApprove(Map<String, Object> requestData) {
+        try {
+            List<Map<String, Object>> products = (List<Map<String, Object>>) requestData.get("products");
+            if (products == null || products.isEmpty()) return false;
+
+            for (Map<String, Object> p : products) {
+                int quantity = ((Number) p.get("quantity")).intValue();
+                String productType = (String) p.get("productType");
+
+                // Điều kiện cơ bản: quantity < 5 và loại OFFICE_EQUIPMENT
+                if (quantity >= 5 || !"OFFICE_EQUIPMENT".equals(productType)) {
+                    return false;
+                }
+
+                // Check tồn kho: sản phẩm phải còn đủ hàng
+                Number productIdNum = (Number) p.get("productId");
+                if (productIdNum == null) return false;
+
+                Products dbProduct = productRepository.findById(productIdNum.longValue()).orElse(null);
+                if (dbProduct == null || dbProduct.getProductQuantity() == null
+                        || dbProduct.getProductQuantity() < quantity) {
+                    return false; // Hết hàng hoặc tồn kho không đủ → tắt auto-approve
+                }
+            }
+            return true;
+        } catch (Exception e) {
+            throw new AppException(ErrorCode.AUTO_APPROVAL_FAILED);
+        }
+    }
+
     @PreAuthorize("hasRole('ROLE_USER')")
     @Transactional
     public ApprovalResponse createApprovalRequest(ApprovalCreationRequest request) {
@@ -98,6 +132,26 @@ public class ApprovalService {
         approval.setCreatorUser(creator);
         // approvalStatus, currentStepOrder, createdAt được set bởi @PrePersist
 
+        if (isEligibleForAutoApprove(request.getRequestData())) {
+            approval.setApprovalStatus(ApprovalRequestsStatus.APPROVED.name()); // [cite: 215]
+            approval.setUpdatedAt(LocalDateTime.now());
+
+            // Lưu yêu cầu đã được APPROVED
+            approvalRequestRepository.save(approval);
+
+            // Ghi lịch sử duyệt bởi SYSTEM
+            saveAutoApprovalHistory(approval); // Bạn cần định nghĩa hàm helper này
+
+            // Gửi thông báo phê duyệt cho người tạo
+            NotificationRequest noti = new NotificationRequest();
+            noti.setRecipient(creator.getUserName());
+            noti.setContent("Yêu cầu \"" + approval.getTitle() + "\" đã được hệ thống phê duyệt tự động.");
+            noti.setNotificationType(NotificationType.REQUEST_APPROVED); // [cite: 221]
+            notificationService.send(noti);
+
+            return toApprovalResponse(approval);
+        }
+
         approvalRequestRepository.save(approval);
 
         // Gửi notification cho approver bước 1
@@ -107,8 +161,8 @@ public class ApprovalService {
         if (approverName != null) {
             NotificationRequest noti = new NotificationRequest();
             noti.setRecipient(approverName);
-            noti.setContent("Bạn có yêu cầu phê duyệt mới (Bước 1: " + firstStep.getStepName()
-                    + "): \"" + approval.getTitle() + "\" từ " + creator.getName());
+            noti.setContent("Bạn có yêu cầu phê duyệt mới "
+                    + "\" " + approval.getTitle() + "\" từ " + creator.getName());
             noti.setAdminContent(creator.getName() + " đã gửi yêu cầu \"" + approval.getTitle()
                     + "\" - Đang chờ " + firstStep.getStepName());
             noti.setNotificationType(NotificationType.NEW_REQUEST);
@@ -270,6 +324,22 @@ public class ApprovalService {
         return null;
     }
 
+    /**
+     * Lưu lịch sử duyệt tự động bởi SYSTEM cho tất cả các bước trong workflow.
+     */
+    private void saveAutoApprovalHistory(ApprovalRequests approval) {
+        for (WorkflowStep step : approval.getTemplate().getSteps()) {
+            ApprovalHistory history = new ApprovalHistory();
+            history.setApprovalRequest(approval);
+            history.setStepOrder(step.getStepOrder());
+            history.setStepName(step.getStepName());
+            history.setApprover(approval.getCreatorUser()); // Ghi nhận creator vì hệ thống tự duyệt
+            history.setAction(ApprovalRequestsStatus.APPROVED.name());
+            history.setFeedback("Hệ thống tự động phê duyệt");
+            approvalHistoryRepository.save(history);
+        }
+    }
+
     // === Response mapping ===
 
     private ApprovalResponse toApprovalResponse(ApprovalRequests entity) {
@@ -343,4 +413,6 @@ public class ApprovalService {
 
         return res;
     }
+
+
 }

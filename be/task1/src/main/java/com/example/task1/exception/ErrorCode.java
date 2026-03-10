@@ -31,7 +31,7 @@ public enum ErrorCode {
     APPROVAL_ALREADY_PROCESSED(4005, "This request has already been processed", HttpStatus.BAD_REQUEST),
     INSUFFICIENT_STOCK(4006, "Insufficient stock for product", HttpStatus.BAD_REQUEST),
     STEP_NOT_WAITING(4007, "This step is not waiting for approval", HttpStatus.BAD_REQUEST),
-
+    AUTO_APPROVAL_FAILED(4008, "Auto-approval failed due to insufficient stock", HttpStatus.BAD_REQUEST),
     // Workflow errors (8xxx)
     WORKFLOW_NOT_FOUND(8001, "Workflow template not found", HttpStatus.NOT_FOUND),
     WORKFLOW_NAME_EXISTS(8002, "Workflow template name already exists", HttpStatus.CONFLICT),
