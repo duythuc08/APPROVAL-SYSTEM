@@ -60,7 +60,11 @@ public class ApprovalRequests {
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
-        this.approvalStatus = "PENDING";
-        this.currentStepOrder = 1;
+        if (this.approvalStatus == null) {
+            this.approvalStatus = "PENDING";
+        }
+        if (this.currentStepOrder == 0) {
+            this.currentStepOrder = 1;
+        }
     }
 }

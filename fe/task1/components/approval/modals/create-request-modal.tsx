@@ -254,14 +254,22 @@ export function CreateRequestModal({ open, onOpenChange, onSuccess }: CreateRequ
                             <SelectContent>
                                 {templates.map((t) => (
                                     <SelectItem key={t.id} value={String(t.id)} className="cursor-pointer">
-                                        <div>
+                                        <div className="flex items-center gap-2">
                                             <span className="font-medium">{t.name}</span>
-                                            <span className="text-muted-foreground ml-2 text-xs">({t.steps.length} bước)</span>
+                                            <span className="text-muted-foreground text-xs">({t.steps.length} bước)</span>
+                                            {t.executionMode === 'AUTO' && (
+                                                <Badge variant="default" className="bg-green-600 text-[10px] px-1.5 py-0">Tự động</Badge>
+                                            )}
                                         </div>
                                     </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
+                        {selectedTemplate?.executionMode === 'AUTO' && (
+                            <p className="text-xs text-green-600 font-medium mt-1">
+                                Quy trình này được duyệt tự động — yêu cầu sẽ được phê duyệt ngay khi gửi.
+                            </p>
+                        )}
                     </div>
 
                     {/* Chọn sản phẩm — chỉ hiện khi quy trình duyệt vật tư (đặt TRƯỚC bước duyệt để user thấy ngưỡng) */}

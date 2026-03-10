@@ -14,4 +14,5 @@ export interface WorkflowTemplate {
     name: string
     description: string | null
     steps: WorkflowStep[]
+    executionMode: 'MANUAL' | 'AUTO'
 }

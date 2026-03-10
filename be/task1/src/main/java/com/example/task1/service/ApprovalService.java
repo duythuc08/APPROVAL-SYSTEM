@@ -8,6 +8,7 @@ import com.example.task1.dto.approvalRequest.res.ApprovalResponse;
 import com.example.task1.dto.notification.req.NotificationRequest;
 import com.example.task1.entity.*;
 import com.example.task1.enums.ApprovalRequestsStatus;
+import com.example.task1.enums.ExecutionMode;
 import com.example.task1.enums.NotificationType;
 import com.example.task1.exception.AppException;
 import com.example.task1.exception.ErrorCode;
@@ -157,35 +158,38 @@ public class ApprovalService {
         approval.setCreatorUser(creator);
         // approvalStatus, currentStepOrder, createdAt được set bởi @PrePersist
 
-        if (isEligibleForAutoApprove(request.getRequestData())) {
-            approval.setApprovalStatus(ApprovalRequestsStatus.APPROVED.name()); // [cite: 215]
+        // Kiểm tra duyệt tự động: theo executionMode của template HOẶC theo điều kiện sản phẩm
+        boolean isAutoMode = template.getExecutionMode() == ExecutionMode.AUTO;
+        boolean isAutoEligible = isEligibleForAutoApprove(request.getRequestData());
+
+        if (isAutoMode || isAutoEligible) {
+            approval.setApprovalStatus(ApprovalRequestsStatus.APPROVED.name());
+            approval.setCurrentStepOrder(template.getSteps().size());
+            approval.setCurrentStepDeadline(null);
             approval.setUpdatedAt(LocalDateTime.now());
-
-            // Lưu yêu cầu đã được APPROVED
             approvalRequestRepository.save(approval);
+            saveAutoApprovalHistory(approval);
 
-            // Ghi lịch sử duyệt bởi SYSTEM
-            saveAutoApprovalHistory(approval); // Bạn cần định nghĩa hàm helper này
+            String reason = isAutoMode
+                    ? "Quy trình \"" + template.getName() + "\" được cấu hình duyệt tự động."
+                    : "Yêu cầu đủ điều kiện phê duyệt tự động (thiết bị số lượng nhỏ).";
 
-            // Gửi thông báo phê duyệt cho người tạo
             NotificationRequest noti = new NotificationRequest();
             noti.setRecipient(creator.getUserName());
-            noti.setContent("Yêu cầu \"" + approval.getTitle() + "\" đã được hệ thống phê duyệt tự động.");
-            noti.setNotificationType(NotificationType.REQUEST_APPROVED); // [cite: 221]
+            noti.setContent("Yêu cầu \"" + approval.getTitle() + "\" đã được hệ thống phê duyệt tự động. " + reason);
+            noti.setAdminContent(creator.getName() + " đã gửi yêu cầu \"" + approval.getTitle()
+                    + "\" - Được hệ thống tự động phê duyệt");
+            noti.setNotificationType(NotificationType.REQUEST_APPROVED);
             notificationService.send(noti);
-
             return toApprovalResponse(approval);
         }
 
         // Tính deadline cho bước 1
         approval.setCurrentStepDeadline(calculateDeadlineForStep(approval, 1));
-
         approvalRequestRepository.save(approval);
-
         // Gửi notification cho approver bước 1
         WorkflowStep firstStep = template.getSteps().get(0);
         String approverName = resolveApproverName(firstStep);
-
         if (approverName != null) {
             NotificationRequest noti = new NotificationRequest();
             noti.setRecipient(approverName);

@@ -45,7 +45,6 @@ import { userService } from "@/lib/service/user-api"
 import { WorkflowTemplate } from "@/types/workflow"
 
 const ROLE_OPTIONS = [
-    { value: "USER", label: "Người dùng" },
     { value: "APPROVER", label: "Người duyệt" },
     { value: "ADMIN", label: "Quản trị viên" },
 ]
@@ -75,6 +74,7 @@ export default function WorkflowManagement() {
     // Form state
     const [name, setName] = useState("")
     const [description, setDescription] = useState("")
+    const [executionMode, setExecutionMode] = useState<'MANUAL' | 'AUTO'>('MANUAL')
     const [steps, setSteps] = useState<StepForm[]>([])
     const [formError, setFormError] = useState("")
     const [saving, setSaving] = useState(false)
@@ -108,6 +108,7 @@ export default function WorkflowManagement() {
         setEditingId(null)
         setName("")
         setDescription("")
+        setExecutionMode('MANUAL')
         setSteps([{ id: Date.now(), stepOrder: 1, stepName: "", requiredRole: "APPROVER", specificApproverId: "", deadlineHours: "" }])
         setFormError("")
         fetchApprovers()
@@ -118,6 +119,7 @@ export default function WorkflowManagement() {
         setEditingId(t.id)
         setName(t.name)
         setDescription(t.description ?? "")
+        setExecutionMode(t.executionMode ?? 'MANUAL')
         setSteps(
             t.steps.map((s, i) => ({
                 id: Date.now() + i,
@@ -183,6 +185,7 @@ export default function WorkflowManagement() {
         const payload = {
             name,
             description,
+            executionMode,
             steps: steps.map((s) => ({
                 stepOrder: s.stepOrder,
                 stepName: s.stepName,
@@ -245,6 +248,7 @@ export default function WorkflowManagement() {
                         <TableRow>
                             <TableHead>Tên quy trình</TableHead>
                             <TableHead>Mô tả</TableHead>
+                            <TableHead className="text-center">Chế độ</TableHead>
                             <TableHead className="text-center">Số bước</TableHead>
                             <TableHead>Các bước</TableHead>
                             <TableHead className="text-right">Hành động</TableHead>
@@ -253,7 +257,7 @@ export default function WorkflowManagement() {
                     <TableBody>
                         {templates.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                                     Chưa có quy trình nào.
                                 </TableCell>
                             </TableRow>
@@ -263,6 +267,12 @@ export default function WorkflowManagement() {
                                     <TableCell className="font-medium">{t.name}</TableCell>
                                     <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
                                         {t.description ?? "--"}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                        <Badge variant={t.executionMode === 'AUTO' ? 'default' : 'outline'}
+                                               className={t.executionMode === 'AUTO' ? 'bg-green-600' : ''}>
+                                            {t.executionMode === 'AUTO' ? 'Tự động' : 'Thủ công'}
+                                        </Badge>
                                     </TableCell>
                                     <TableCell className="text-center">
                                         <Badge variant="secondary">{t.steps.length}</Badge>
@@ -312,6 +322,24 @@ export default function WorkflowManagement() {
                         <div className="space-y-1.5">
                             <Label>Mô tả</Label>
                             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Mô tả quy trình..." rows={2} className="border-black/50" />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label>Chế độ duyệt</Label>
+                            <Select value={executionMode} onValueChange={(v) => setExecutionMode(v as 'MANUAL' | 'AUTO')}>
+                                <SelectTrigger className="border-black/50 cursor-pointer">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="MANUAL" className="cursor-pointer">Thủ công — Approver duyệt từng bước</SelectItem>
+                                    <SelectItem value="AUTO" className="cursor-pointer">Tự động — Hệ thống tự duyệt ngay</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            {executionMode === 'AUTO' && (
+                                <p className="text-xs text-amber-600">
+                                    Khi chọn chế độ tự động, yêu cầu sẽ được hệ thống phê duyệt ngay khi người dùng gửi mà không cần approver duyệt thủ công.
+                                </p>
+                            )}
                         </div>
 
                         <div className="space-y-2">

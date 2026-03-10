@@ -51,6 +51,9 @@ public class WorkflowTemplateService {
         WorkflowTemplate template = new WorkflowTemplate();
         template.setName(request.getName());
         template.setDescription(request.getDescription());
+        if (request.getExecutionMode() != null) {
+            template.setExecutionMode(request.getExecutionMode());
+        }
 
         for (WorkflowStepRequest stepReq : request.getSteps()) {
             WorkflowStep step = toStepEntity(stepReq, template);
@@ -75,6 +78,9 @@ public class WorkflowTemplateService {
 
         template.setName(request.getName());
         template.setDescription(request.getDescription());
+        if (request.getExecutionMode() != null) {
+            template.setExecutionMode(request.getExecutionMode());
+        }
 
         // Xoa steps cu, them steps moi (orphanRemoval = true se xoa trong DB)
         template.getSteps().clear();
@@ -122,6 +128,7 @@ public class WorkflowTemplateService {
         res.setId(template.getId());
         res.setName(template.getName());
         res.setDescription(template.getDescription());
+        res.setExecutionMode(template.getExecutionMode());
         res.setSteps(template.getSteps().stream().map(this::toStepResponse).toList());
         return res;
     }

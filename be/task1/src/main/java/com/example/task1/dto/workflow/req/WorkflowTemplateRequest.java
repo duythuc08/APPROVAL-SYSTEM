@@ -1,5 +1,6 @@
 package com.example.task1.dto.workflow.req;
 
+import com.example.task1.enums.ExecutionMode;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -13,4 +14,5 @@ public class WorkflowTemplateRequest {
     String name;
     String description;
     List<WorkflowStepRequest> steps;
+    ExecutionMode executionMode;
 }

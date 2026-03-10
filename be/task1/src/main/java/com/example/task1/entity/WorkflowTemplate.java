@@ -1,5 +1,6 @@
 package com.example.task1.entity;
 
+import com.example.task1.enums.ExecutionMode;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -33,6 +34,10 @@ public class WorkflowTemplate {
     @OrderBy("stepOrder ASC")
     @BatchSize(size = 10)
     private List<WorkflowStep> steps = new ArrayList<>();
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, columnDefinition = "varchar(255) default 'MANUAL'")
+    private ExecutionMode executionMode = ExecutionMode.MANUAL;
 
     @PrePersist
     protected void onCreate() {
