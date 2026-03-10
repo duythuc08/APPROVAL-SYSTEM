@@ -20,7 +20,9 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -50,21 +52,44 @@ public class ApprovalService {
     @PreAuthorize("hasRole('ROLE_APPROVER')")
     public Page<ApprovalResponse> getMyApproverApproval(Specification<ApprovalRequests> spec, Pageable pageable) {
         Users currentUser = getAuthenticatedUser();
+        String currentUserName = currentUser.getUserName();
+        String currentUserRole = "APPROVER"; // Hoặc lấy từ currentUser.getRoles()
 
-        // Tìm các request đang PENDING mà bước hiện tại có approver là user hiện tại
-        // (specificApprover match HOẶC requiredRole match)
         Specification<ApprovalRequests> approverSpec = (root, query, cb) -> {
-            // Phải là PENDING
+            if (query != null) {
+                // Join voi steps de loc theo buoc hien tai, can distinct de khong nhan ban ghi khi paginate.
+                query.distinct(true);
+            }
+
+            // 1. Phải ở trạng thái PENDING
             var pendingPredicate = cb.equal(root.get("approvalStatus"), ApprovalRequestsStatus.PENDING.name());
-            return pendingPredicate;
+
+            // 2. Join với Template và WorkflowStep để tìm bước hiện tại
+            var joinTemplate = root.join("template");
+            var joinSteps = joinTemplate.join("steps");
+
+            // 3. Điều kiện: bước trong bảng steps phải trùng với bước hiện tại của request (currentStepOrder)
+            var currentStepPredicate = cb.equal(joinSteps.get("stepOrder"), root.get("currentStepOrder"));
+
+            // 4. Điều kiện: User là người duyệt cụ thể HOẶC có Role phù hợp
+            var isSpecificApprover = cb.equal(joinSteps.get("specificApprover").get("userName"), currentUserName);
+            var hasRequiredRole = cb.equal(joinSteps.get("requiredRole"), currentUserRole);
+
+            return cb.and(pendingPredicate, currentStepPredicate, cb.or(isSpecificApprover, hasRequiredRole));
         };
 
-        Page<ApprovalRequests> page = approvalRequestRepository.findAll(
-                Specification.where(approverSpec).and(spec), pageable);
+        Pageable effectivePageable = pageable;
+        if (pageable.getSort().isUnsorted()) {
+            effectivePageable = PageRequest.of(
+                    pageable.getPageNumber(),
+                    pageable.getPageSize(),
+                    Sort.by(Sort.Direction.DESC, "createdAt", "approvalRequestId")
+            );
+        }
 
-        // Lọc thêm: chỉ giữ những request mà bước hiện tại thuộc về user này
-        // (làm ở application level vì join với WorkflowStep qua template phức tạp với Specification)
-        return page.map(this::toApprovalResponse);
+        // Thực hiện tìm kiếm và phân trang ngay từ Database
+        return approvalRequestRepository.findAll(Specification.where(approverSpec).and(spec), effectivePageable)
+                .map(this::toApprovalResponse);
     }
 
     @PreAuthorize("hasRole('ROLE_USER')")
@@ -153,17 +178,12 @@ public class ApprovalService {
         }
 
         // Tính deadline cho bước 1
-        WorkflowStep firstStep = template.getSteps().get(0);
-        Integer deadlineHours = request.getOverrideDeadlineHours() != null
-                ? request.getOverrideDeadlineHours()
-                : firstStep.getDeadlineHours();
-        if (deadlineHours != null) {
-            approval.setCurrentStepDeadline(LocalDateTime.now().plusHours(deadlineHours));
-        }
+        approval.setCurrentStepDeadline(calculateDeadlineForStep(approval, 1));
 
         approvalRequestRepository.save(approval);
 
         // Gửi notification cho approver bước 1
+        WorkflowStep firstStep = template.getSteps().get(0);
         String approverName = resolveApproverName(firstStep);
 
         if (approverName != null) {
@@ -238,17 +258,11 @@ public class ApprovalService {
                 // Còn bước tiếp -> chuyển sang bước kế
                 approval.setCurrentStepOrder(nextStepOrder);
 
+                approval.setCurrentStepDeadline(calculateDeadlineForStep(approval, nextStepOrder));
                 WorkflowStep nextStep = approval.getTemplate().getSteps().stream()
                         .filter(s -> s.getStepOrder() == nextStepOrder)
                         .findFirst()
                         .orElseThrow();
-
-                // Tính deadline cho bước kế
-                if (nextStep.getDeadlineHours() != null) {
-                    approval.setCurrentStepDeadline(LocalDateTime.now().plusHours(nextStep.getDeadlineHours()));
-                } else {
-                    approval.setCurrentStepDeadline(null);
-                }
 
                 String nextApproverName = resolveApproverName(nextStep);
                 if (nextApproverName != null) {
@@ -433,5 +447,33 @@ public class ApprovalService {
         return res;
     }
 
+    private LocalDateTime calculateDeadlineForStep(ApprovalRequests approval, int stepOrder) {
+        Map<String, Object> requestData = approval.getRequestData();
+        Map<String, Object> customDeadlines = (requestData != null)
+                ? (Map<String, Object>) requestData.get("customDeadlines")
+                : null;
 
+        WorkflowStep currentStep = approval.getTemplate().getSteps().stream()
+                .filter(s -> s.getStepOrder() == stepOrder)
+                .findFirst()
+                .orElse(null);
+
+        if (currentStep == null) return null;
+
+        // Lấy giá trị mặc định từ bước (có thể null nếu Admin không đặt)
+        Integer deadlineHours = currentStep.getDeadlineHours();
+        String stepKey = String.valueOf(stepOrder);
+
+        // Ưu tiên ghi đè bằng giá trị User nhập từ Frontend
+        if (customDeadlines != null && customDeadlines.containsKey(stepKey)) {
+            Object val = customDeadlines.get(stepKey);
+            if (val != null) {
+                deadlineHours = ((Number) val).intValue();
+            }
+        }
+
+        return (deadlineHours != null && deadlineHours > 0)
+                ? LocalDateTime.now().plusHours(deadlineHours)
+                : null;
+    }
 }
