@@ -314,73 +314,38 @@ export function CreateRequestModal({ open, onOpenChange, onSuccess }: CreateRequ
                     </div>}
 
                     {/* Hiển thị các bước của quy trình đã chọn */}
-                    {selectedTemplate && (
-                        <div className="space-y-2">
-                            <Label className="text-blue-500 font-bold">Các bước duyệt</Label>
-                            <div className="border border-black/50 rounded-md divide-y">
-                                {selectedTemplate.steps.map((step) => (
-                                    <div key={step.id} className="flex items-center gap-3 px-3 py-2 border-black/30">
-                                        <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold shrink-0">
-                                            {step.stepOrder}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium">{step.stepName}</p>
-                                            {step.deadlineHours && (
-                                                <p className="text-xs text-muted-foreground">Thời hạn: {step.deadlineHours} giờ</p>
-                                            )}
-                                        </div>
-                                        {step.specificApproverName ? (
-                                            <Badge variant="secondary" className="text-xs shrink-0">
-                                                {step.specificApproverName}
-                                            </Badge>
-                                        ) : step.requiredRole ? (
-                                            <Badge variant="outline" className="text-xs shrink-0">
-                                                {ROLE_LABELS[step.requiredRole] ?? step.requiredRole}
-                                            </Badge>
-                                        ) : null}
-                                    </div>
-                                ))}
-                            </div>
-                            {selectedTemplate.description && (
-                                <p className="text-xs text-muted-foreground italic">{selectedTemplate.description}</p>
-                            )}
-                        </div>
-                    )}
-
-                    {selectedTemplate && (
-                        <div className="space-y-3">
-                            <Label className="text-blue-500 font-bold">Cấu hình thời hạn duyệt từng bước (giờ)</Label>
-                            <div className="border rounded-md divide-y border-black/50">
-                                {selectedTemplate.steps.map((step) => (
-                                    <div key={step.id} className="p-3 space-y-2 border-black/30">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <Badge variant="outline" className="bg-white">{step.stepOrder}</Badge>
-                                                <span className="text-sm font-medium">{step.stepName}</span>
-                                            </div>
-                                            <span className="text-xs text-muted-foreground italic">Mặc định: {step.deadlineHours || 0}h </span>
-                                        </div>
-
-                                        <div className="flex items-center gap-2 ml-7">
-                                            <Label htmlFor={`dl-${step.id}`} className="text-xs whitespace-nowrap">Thời hạn:</Label>
-                                            <Input
-                                                id={`dl-${step.id}`}
-                                                type="number"
-                                                min={1}
-                                                placeholder="Nhập số giờ..."
-                                                className="h-8 text-sm bg-white "
-                                                value={stepDeadlines[step.stepOrder] || ""}
-                                                onChange={(e) => setStepDeadlines({
-                                                    ...stepDeadlines,
-                                                    [step.stepOrder]: e.target.value
-                                                })}
-                                            />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+                    {/*{selectedTemplate && (*/}
+                    {/*    <div className="space-y-2">*/}
+                    {/*        <Label className="text-blue-500 font-bold">Các bước duyệt</Label>*/}
+                    {/*        <div className="border border-black/50 rounded-md divide-y">*/}
+                    {/*            {selectedTemplate.steps.map((step) => (*/}
+                    {/*                <div key={step.id} className="flex items-center gap-3 px-3 py-2 border-black/30">*/}
+                    {/*                    <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold shrink-0">*/}
+                    {/*                        {step.stepOrder}*/}
+                    {/*                    </div>*/}
+                    {/*                    <div className="flex-1 min-w-0">*/}
+                    {/*                        <p className="text-sm font-medium">{step.stepName}</p>*/}
+                    {/*                        {step.deadlineHours && (*/}
+                    {/*                            <p className="text-xs text-muted-foreground">Thời hạn: {step.deadlineHours} giờ</p>*/}
+                    {/*                        )}*/}
+                    {/*                    </div>*/}
+                    {/*                    {step.specificApproverName ? (*/}
+                    {/*                        <Badge variant="secondary" className="text-xs shrink-0">*/}
+                    {/*                            {step.specificApproverName}*/}
+                    {/*                        </Badge>*/}
+                    {/*                    ) : step.requiredRole ? (*/}
+                    {/*                        <Badge variant="outline" className="text-xs shrink-0">*/}
+                    {/*                            {ROLE_LABELS[step.requiredRole] ?? step.requiredRole}*/}
+                    {/*                        </Badge>*/}
+                    {/*                    ) : null}*/}
+                    {/*                </div>*/}
+                    {/*            ))}*/}
+                    {/*        </div>*/}
+                    {/*        {selectedTemplate.description && (*/}
+                    {/*            <p className="text-xs text-muted-foreground italic">{selectedTemplate.description}</p>*/}
+                    {/*        )}*/}
+                    {/*    </div>*/}
+                    {/*)}*/}
 
                     {/* Mô tả */}
                     <div className="space-y-1.5">

@@ -211,26 +211,6 @@ export function DetailModal({ open, request, onOpenChange }: DetailModalProps) {
                         </>
                     )}
 
-                    {/* Request Data khác (ngoài description và products) */}
-                    {request.requestData && Object.keys(request.requestData).filter(k => k !== "description" && k !== "products").length > 0 && (
-                        <>
-                            <Separator />
-                            <div className="space-y-2">
-                                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                    Dữ liệu yêu cầu
-                                </p>
-                                <pre className="text-xs bg-slate-50 p-3 rounded-md overflow-x-auto">
-                                    {JSON.stringify(
-                                        Object.fromEntries(
-                                            Object.entries(request.requestData).filter(([k]) => k !== "description" && k !== "products")
-                                        ),
-                                        null,
-                                        2
-                                    )}
-                                </pre>
-                            </div>
-                        </>
-                    )}
                 </div>
             </DialogContent>
         </Dialog>

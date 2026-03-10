@@ -218,7 +218,13 @@ export default function WorkflowManagement() {
             setDeleteId(null)
         }
     }
-
+    const handleBlur = (id: number, value: string) => {
+        const num = Number(value);
+        if (isNaN(num) || num <= 0) {
+            // Nếu nhập sai, tự động reset về 1 hoặc giá trị mặc định của bạn
+            handleStepChange(id, "deadlineHours", "1");
+        }
+    };
     if (loading) return <div className="p-8 text-muted-foreground">Đang tải...</div>
 
     return (
@@ -365,11 +371,12 @@ export default function WorkflowManagement() {
                                             <div className="flex items-center gap-2">
                                                 <Input
                                                     type="number"
-                                                    min={1}
+                                                    min="1"
                                                     value={step.deadlineHours}
                                                     onChange={(e) => handleStepChange(step.id, "deadlineHours", e.target.value)}
                                                     placeholder="Deadline (giờ)"
                                                     className="h-8 text-xs flex-1"
+                                                    onBlur={event => handleBlur(step.id,event.target.value)}
                                                 />
                                             </div>
                                         </div>

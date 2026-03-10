@@ -34,19 +34,19 @@ function buildParams(page: number, size: number, search: string, status: string)
 
 // ADMIN
 export async function getAllApprovalRequests(page = 0, size = 5, search = "", status = "ALL"): Promise<PagedApprovalResult> {
-    const json = await authFetch(`/approval-requests?${buildParams(page, size, search, status)}`)
+    const json = await authFetch(`/approval-requests?${buildParams(page, size, search, status)}&sort=createdAt,desc`)
     return json.result
 }
 
 // APPROVER
 export async function getPendingApprovalRequests(page = 0, size = 5, search = ""): Promise<PagedApprovalResult> {
-    const json = await authFetch(`/approval-requests/myApprover?${buildParams(page, size, search, "ALL")}`)
+    const json = await authFetch(`/approval-requests/myApprover?${buildParams(page, size, search, "ALL")}&sort=createdAt,desc`)
     return json.result
 }
 
 // USER
 export async function getMyRequests(page = 0, size = 5, search = "", status = "ALL"): Promise<PagedApprovalResult> {
-    const json = await authFetch(`/approval-requests/myUser?${buildParams(page, size, search, status)}`)
+    const json = await authFetch(`/approval-requests/myUser?${buildParams(page, size, search, status)}&sort=createdAt,desc`)
     return json.result
 }
 
