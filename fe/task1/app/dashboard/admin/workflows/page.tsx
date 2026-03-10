@@ -56,6 +56,7 @@ interface StepForm {
     stepName: string
     requiredRole: string
     specificApproverId: string
+    deadlineHours: string
 }
 
 interface Approver {
@@ -107,7 +108,7 @@ export default function WorkflowManagement() {
         setEditingId(null)
         setName("")
         setDescription("")
-        setSteps([{ id: Date.now(), stepOrder: 1, stepName: "", requiredRole: "APPROVER", specificApproverId: "" }])
+        setSteps([{ id: Date.now(), stepOrder: 1, stepName: "", requiredRole: "APPROVER", specificApproverId: "", deadlineHours: "" }])
         setFormError("")
         fetchApprovers()
         setModalOpen(true)
@@ -124,6 +125,7 @@ export default function WorkflowManagement() {
                 stepName: s.stepName,
                 requiredRole: s.requiredRole ?? "",
                 specificApproverId: s.specificApproverId ?? "",
+                deadlineHours: s.deadlineHours != null ? String(s.deadlineHours) : "",
             }))
         )
         setFormError("")
@@ -134,7 +136,7 @@ export default function WorkflowManagement() {
     const handleAddStep = () => {
         setSteps((prev) => [
             ...prev,
-            { id: Date.now(), stepOrder: prev.length + 1, stepName: "", requiredRole: "APPROVER", specificApproverId: "" },
+            { id: Date.now(), stepOrder: prev.length + 1, stepName: "", requiredRole: "APPROVER", specificApproverId: "", deadlineHours: "" },
         ])
     }
 
@@ -186,6 +188,7 @@ export default function WorkflowManagement() {
                 stepName: s.stepName,
                 requiredRole: s.requiredRole || "",
                 specificApproverId: s.specificApproverId || "",
+                deadlineHours: s.deadlineHours ? Number(s.deadlineHours) : undefined,
             })),
         }
 
@@ -358,6 +361,16 @@ export default function WorkflowManagement() {
                                                         Gửi trực tiếp đến quản trị viên
                                                     </span>
                                                 )}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Input
+                                                    type="number"
+                                                    min={1}
+                                                    value={step.deadlineHours}
+                                                    onChange={(e) => handleStepChange(step.id, "deadlineHours", e.target.value)}
+                                                    placeholder="Deadline (giờ)"
+                                                    className="h-8 text-xs flex-1"
+                                                />
                                             </div>
                                         </div>
                                         <button

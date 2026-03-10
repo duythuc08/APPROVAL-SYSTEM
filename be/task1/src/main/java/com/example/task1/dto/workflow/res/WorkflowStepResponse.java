@@ -15,5 +15,5 @@ public class WorkflowStepResponse {
     String specificApproverId;  // nullable — userId dùng để set lại dropdown khi edit
     String specificApproverName;  // nullable
     String specificApproverUserName;  // nullable — username dùng để query products
-
+    Integer deadlineHours; // nullable
 }

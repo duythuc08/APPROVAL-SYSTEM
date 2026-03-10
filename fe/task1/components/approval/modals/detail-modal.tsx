@@ -155,6 +155,28 @@ export function DetailModal({ open, request, onOpenChange }: DetailModalProps) {
                         </div>
                     </div>
 
+                    {/* Deadline */}
+                    {request.currentStepDeadline && request.approvalStatus === "PENDING" && (() => {
+                        const deadline = new Date(request.currentStepDeadline)
+                        const now = new Date()
+                        const isOverdue = deadline < now
+                        return (
+                            <InfoRow
+                                label="Hạn chót bước hiện tại"
+                                value={
+                                    <span className="flex items-center gap-2">
+                                        <span>{deadline.toLocaleString("vi-VN")}</span>
+                                        {isOverdue ? (
+                                            <Badge variant="outline" className="border-red-500 bg-red-50 text-red-700 text-xs">Quá hạn</Badge>
+                                        ) : (
+                                            <Badge variant="outline" className="border-blue-500 bg-blue-50 text-blue-700 text-xs">Còn hạn</Badge>
+                                        )}
+                                    </span>
+                                }
+                            />
+                        )
+                    })()}
+
                     <Separator />
 
                     <InfoRow label="Người yêu cầu" value={<span className="font-medium">{request.creatorName}</span>} />

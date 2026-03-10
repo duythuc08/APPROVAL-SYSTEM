@@ -34,4 +34,6 @@ public class WorkflowStep {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "specific_approver_id")
     private Users specificApprover; // Chi dinh dich danh 1 nguoi duyet (nullable neu dung role)
+
+    private Integer deadlineHours; // So gio mac dinh de hoan thanh buoc (null = khong gioi han)
 }

@@ -23,4 +23,5 @@ public class ApprovalConfirmResponse {
     private List<ApprovalHistoryResponse> history;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime currentStepDeadline; // nullable
 }

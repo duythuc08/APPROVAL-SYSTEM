@@ -17,4 +17,5 @@ public class ApprovalCreationRequest {
     private String title;
     Long templateId;
     Map<String, Object> requestData;
+    Integer overrideDeadlineHours; // nullable — USER override deadline buoc 1
 }

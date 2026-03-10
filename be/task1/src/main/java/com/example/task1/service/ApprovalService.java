@@ -152,10 +152,18 @@ public class ApprovalService {
             return toApprovalResponse(approval);
         }
 
+        // Tính deadline cho bước 1
+        WorkflowStep firstStep = template.getSteps().get(0);
+        Integer deadlineHours = request.getOverrideDeadlineHours() != null
+                ? request.getOverrideDeadlineHours()
+                : firstStep.getDeadlineHours();
+        if (deadlineHours != null) {
+            approval.setCurrentStepDeadline(LocalDateTime.now().plusHours(deadlineHours));
+        }
+
         approvalRequestRepository.save(approval);
 
         // Gửi notification cho approver bước 1
-        WorkflowStep firstStep = template.getSteps().get(0);
         String approverName = resolveApproverName(firstStep);
 
         if (approverName != null) {
@@ -210,6 +218,7 @@ public class ApprovalService {
             // === TỪ CHỐI -> Dừng toàn bộ workflow ===
             approval.setApprovalStatus(ApprovalRequestsStatus.REJECTED.name());
             approval.setUpdatedAt(LocalDateTime.now());
+            approval.setCurrentStepDeadline(null);
 
             NotificationRequest noti = new NotificationRequest();
             noti.setRecipient(approval.getCreatorUser().getUserName());
@@ -234,6 +243,13 @@ public class ApprovalService {
                         .findFirst()
                         .orElseThrow();
 
+                // Tính deadline cho bước kế
+                if (nextStep.getDeadlineHours() != null) {
+                    approval.setCurrentStepDeadline(LocalDateTime.now().plusHours(nextStep.getDeadlineHours()));
+                } else {
+                    approval.setCurrentStepDeadline(null);
+                }
+
                 String nextApproverName = resolveApproverName(nextStep);
                 if (nextApproverName != null) {
                     NotificationRequest noti = new NotificationRequest();
@@ -249,6 +265,7 @@ public class ApprovalService {
                 // Đã duyệt hết -> APPROVED toàn bộ
                 approval.setApprovalStatus(ApprovalRequestsStatus.APPROVED.name());
                 approval.setUpdatedAt(LocalDateTime.now());
+                approval.setCurrentStepDeadline(null);
 
                 NotificationRequest noti = new NotificationRequest();
                 noti.setRecipient(approval.getCreatorUser().getUserName());
@@ -354,6 +371,7 @@ public class ApprovalService {
         res.setRequestData(entity.getRequestData());
         res.setCreatedAt(entity.getCreatedAt());
         res.setUpdatedAt(entity.getUpdatedAt());
+        res.setCurrentStepDeadline(entity.getCurrentStepDeadline());
 
         // Tên bước hiện tại + tên approver
         entity.getTemplate().getSteps().stream()
@@ -396,6 +414,7 @@ public class ApprovalService {
         res.setRequestData(entity.getRequestData());
         res.setCreatedAt(entity.getCreatedAt());
         res.setUpdatedAt(entity.getUpdatedAt());
+        res.setCurrentStepDeadline(entity.getCurrentStepDeadline());
 
         List<ApprovalHistoryResponse> historyList = entity.getHistory().stream()
                 .map(h -> {

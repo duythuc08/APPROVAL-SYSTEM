@@ -71,7 +71,8 @@ export function CreateRequestModal({ open, onOpenChange, onSuccess }: CreateRequ
     const [products, setProducts] = useState<ProductItem[]>([])
     const [loadingProducts, setLoadingProducts] = useState(false)
     const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([])
-
+    //const [overrideDeadlineHours, setOverrideDeadlineHours] = useState("")
+    const [stepDeadlines, setStepDeadlines] = useState<Record<number, string>>({})
     // Reset khi đóng modal, fetch templates khi mở
     useEffect(() => {
         if (!open) {
@@ -81,6 +82,8 @@ export function CreateRequestModal({ open, onOpenChange, onSuccess }: CreateRequ
             setError("")
             setSelectedProducts([])
             setProducts([])
+            //setOverrideDeadlineHours("")
+            setStepDeadlines({})
             return
         }
         const fetchTemplates = async () => {
@@ -171,7 +174,21 @@ export function CreateRequestModal({ open, onOpenChange, onSuccess }: CreateRequ
         setError("")
         setLoading(true)
 
-        const requestData: Record<string, any> = {}
+        // Chuyển đổi stepDeadlines từ string sang number
+        const customDeadlines = Object.fromEntries(
+            Object.entries(stepDeadlines)
+                .filter(([_, value]) => value !== "") // Chỉ gửi những bước có nhập giá trị
+                .map(([order, value]) => [order, Number(value)])
+        );
+
+        const requestData: Record<string, any> = {
+            description: description.trim(),
+            // Thêm thông tin để BE xử lý Auto-approve
+            productType: selectedProducts.length > 0 ? selectedProducts[0].productType : null,
+            totalQuantity: selectedProducts.reduce((sum, p) => sum + p.quantity, 0),
+            // Đính kèm deadline tùy chỉnh vào requestData [cite: 342]
+            customDeadlines: customDeadlines
+        };
         if (description.trim()) requestData.description = description
         if (selectedProducts.length > 0) {
             requestData.products = selectedProducts.map((p) => ({
@@ -187,6 +204,8 @@ export function CreateRequestModal({ open, onOpenChange, onSuccess }: CreateRequ
                 title,
                 templateId: Number(templateId),
                 requestData,
+                // stepDeadlines: customDeadlines
+                //...(overrideDeadlineHours ? { overrideDeadlineHours: Number(overrideDeadlineHours) } : {}),
             })
             onOpenChange(false)
             onSuccess?.()
@@ -211,7 +230,7 @@ export function CreateRequestModal({ open, onOpenChange, onSuccess }: CreateRequ
 
                     {/* Tiêu đề */}
                     <div className="space-y-1.5">
-                        <Label htmlFor="title">
+                        <Label htmlFor="title" className="text-blue-500 font-bold">
                             Tiêu đề <span className="text-red-500">*</span>
                         </Label>
                         <Input
@@ -225,7 +244,7 @@ export function CreateRequestModal({ open, onOpenChange, onSuccess }: CreateRequ
 
                     {/* Chọn quy trình */}
                     <div className="space-y-1.5">
-                        <Label>
+                        <Label className="text-blue-500 font-bold">
                             Quy trình <span className="text-red-500">*</span>
                         </Label>
                         <Select value={templateId} onValueChange={setTemplateId} disabled={loadingTemplates}>
@@ -247,7 +266,7 @@ export function CreateRequestModal({ open, onOpenChange, onSuccess }: CreateRequ
 
                     {/* Chọn sản phẩm — chỉ hiện khi quy trình duyệt vật tư (đặt TRƯỚC bước duyệt để user thấy ngưỡng) */}
                     {isSupplyWorkflow && <div className="space-y-1.5">
-                        <Label>
+                        <Label className="text-blue-500 font-bold">
                             <Package className="w-3.5 h-3.5 inline mr-1" />
                             Sản phẩm yêu cầu
                         </Label>
@@ -256,11 +275,11 @@ export function CreateRequestModal({ open, onOpenChange, onSuccess }: CreateRequ
                         ) : products.length === 0 ? (
                             <p className="text-sm text-muted-foreground">Không có sản phẩm nào.</p>
                         ) : (
-                            <div className="border rounded-md divide-y max-h-[200px] overflow-y-auto">
+                            <div className="border border-black/50 rounded-md divide-y max-h-[200px] overflow-y-auto">
                                 {products.map((product) => {
                                     const selected = selectedProducts.find((p) => p.productId === product.productId)
                                     return (
-                                        <div key={product.productId} className="flex items-center gap-3 px-3 py-2">
+                                        <div key={product.productId} className="flex items-center gap-3 px-3 py-2 border-black/30">
                                             <Checkbox
                                                 checked={!!selected}
                                                 onCheckedChange={() => toggleProduct(product)}
@@ -297,15 +316,18 @@ export function CreateRequestModal({ open, onOpenChange, onSuccess }: CreateRequ
                     {/* Hiển thị các bước của quy trình đã chọn */}
                     {selectedTemplate && (
                         <div className="space-y-2">
-                            <Label>Các bước duyệt</Label>
-                            <div className="border rounded-md divide-y">
+                            <Label className="text-blue-500 font-bold">Các bước duyệt</Label>
+                            <div className="border border-black/50 rounded-md divide-y">
                                 {selectedTemplate.steps.map((step) => (
-                                    <div key={step.id} className="flex items-center gap-3 px-3 py-2">
+                                    <div key={step.id} className="flex items-center gap-3 px-3 py-2 border-black/30">
                                         <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold shrink-0">
                                             {step.stepOrder}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-medium">{step.stepName}</p>
+                                            {step.deadlineHours && (
+                                                <p className="text-xs text-muted-foreground">Thời hạn: {step.deadlineHours} giờ</p>
+                                            )}
                                         </div>
                                         {step.specificApproverName ? (
                                             <Badge variant="secondary" className="text-xs shrink-0">
@@ -325,9 +347,44 @@ export function CreateRequestModal({ open, onOpenChange, onSuccess }: CreateRequ
                         </div>
                     )}
 
+                    {selectedTemplate && (
+                        <div className="space-y-3">
+                            <Label className="text-blue-500 font-bold">Cấu hình thời hạn duyệt từng bước (giờ)</Label>
+                            <div className="border rounded-md divide-y border-black/50">
+                                {selectedTemplate.steps.map((step) => (
+                                    <div key={step.id} className="p-3 space-y-2 border-black/30">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <Badge variant="outline" className="bg-white">{step.stepOrder}</Badge>
+                                                <span className="text-sm font-medium">{step.stepName}</span>
+                                            </div>
+                                            <span className="text-xs text-muted-foreground italic">Mặc định: {step.deadlineHours || 0}h </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 ml-7">
+                                            <Label htmlFor={`dl-${step.id}`} className="text-xs whitespace-nowrap">Thời hạn:</Label>
+                                            <Input
+                                                id={`dl-${step.id}`}
+                                                type="number"
+                                                min={1}
+                                                placeholder="Nhập số giờ..."
+                                                className="h-8 text-sm bg-white "
+                                                value={stepDeadlines[step.stepOrder] || ""}
+                                                onChange={(e) => setStepDeadlines({
+                                                    ...stepDeadlines,
+                                                    [step.stepOrder]: e.target.value
+                                                })}
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Mô tả */}
                     <div className="space-y-1.5">
-                        <Label htmlFor="desc">Mô tả yêu cầu</Label>
+                        <Label htmlFor="desc" className="text-blue-500 font-bold">Mô tả yêu cầu</Label>
                         <Textarea
                             id="desc"
                             className="border-black/50"

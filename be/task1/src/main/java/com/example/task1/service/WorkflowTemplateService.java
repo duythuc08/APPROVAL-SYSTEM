@@ -112,6 +112,8 @@ public class WorkflowTemplateService {
             step.setSpecificApprover(approver);
         }
 
+        step.setDeadlineHours(req.getDeadlineHours());
+
         return step;
     }
 
@@ -139,6 +141,7 @@ public class WorkflowTemplateService {
         res.setSpecificApproverUserName(
                 step.getSpecificApprover() != null ? step.getSpecificApprover().getUserName() : null
         );
+        res.setDeadlineHours(step.getDeadlineHours());
         return res;
     }
 }

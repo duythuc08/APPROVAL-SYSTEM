@@ -13,5 +13,5 @@ public class WorkflowStepRequest {
     String stepName;
     Role requiredRole;
     String specificApproverId;  // nullable
-
+    Integer deadlineHours; // nullable
 }

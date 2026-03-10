@@ -25,6 +25,7 @@ export interface ApprovalRequest {
     history: ApprovalHistoryItem[]
     createdAt: string
     updatedAt: string | null
+    currentStepDeadline: string | null
 }
 
 export interface PagedApprovalResult {
@@ -38,6 +39,7 @@ export interface CreateApprovalRequestDTO {
     title: string
     templateId: number
     requestData: Record<string, any>
+    overrideDeadlineHours?: number
 }
 
 export interface ColumnCallbacks {

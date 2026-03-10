@@ -55,6 +55,7 @@ public class ApprovalRequests {
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime currentStepDeadline; // Han chot cua buoc hien tai (null = khong gioi han)
 
     @PrePersist
     protected void onCreate() {

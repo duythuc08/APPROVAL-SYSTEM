@@ -127,6 +127,44 @@ export function getColumns(role: CurrentRole, currentUserName?: string, data: Ap
         },
     }
 
+    const deadlineColumn: ColumnDef<ApprovalRequest> = {
+        id: "deadline",
+        header: "Hạn chót",
+        enableSorting: false,
+        cell: ({ row }) => {
+            const { currentStepDeadline, approvalStatus } = row.original
+            if (approvalStatus !== "PENDING" || !currentStepDeadline) {
+                return <span className="text-muted-foreground text-sm">--</span>
+            }
+            const deadline = new Date(currentStepDeadline)
+            const now = new Date()
+            const diffMs = deadline.getTime() - now.getTime()
+            const isOverdue = diffMs < 0
+            const hoursLeft = Math.abs(Math.floor(diffMs / 3600000))
+            const minsLeft = Math.abs(Math.floor((diffMs % 3600000) / 60000))
+
+            if (isOverdue) {
+                return (
+                    <Badge variant="outline" className="border-red-500 bg-red-50 text-red-700 text-xs">
+                        Quá hạn
+                    </Badge>
+                )
+            }
+            if (hoursLeft < 2) {
+                return (
+                    <Badge variant="outline" className="border-orange-500 bg-orange-50 text-orange-700 text-xs">
+                        {hoursLeft}h {minsLeft}m
+                    </Badge>
+                )
+            }
+            return (
+                <span className="text-xs text-muted-foreground">
+                    {hoursLeft}h {minsLeft}m
+                </span>
+            )
+        },
+    }
+
     const statusColumn: ColumnDef<ApprovalRequest> = {
         accessorKey: "approvalStatus",
         header: "Trạng thái",
@@ -174,17 +212,25 @@ export function getColumns(role: CurrentRole, currentUserName?: string, data: Ap
     let columns: ColumnDef<ApprovalRequest>[] = [];
 
     if (role === "ADMIN") {
-        columns = [titleColumn, creatorColumn, progressColumn, currentApproverColumn, statusColumn, actionsColumn];
+        columns = [titleColumn, creatorColumn, progressColumn, currentApproverColumn, deadlineColumn, statusColumn, actionsColumn];
     } else if (role === "APPROVER") {
-        columns = [titleColumn, creatorColumn, progressColumn, statusColumn, actionsColumn];
+        columns = [titleColumn, creatorColumn, progressColumn, deadlineColumn, statusColumn, actionsColumn];
     } else {
         // USER
-        columns = [titleColumn, progressColumn, currentApproverColumn, statusColumn, actionsColumn];
+        columns = [titleColumn, progressColumn, currentApproverColumn, deadlineColumn, statusColumn, actionsColumn];
     }
 
     // 3. Thực hiện lọc bỏ cột "Đang chờ" nếu không có dữ liệu PENDING
     if (!hasPendingRequests) {
         columns = columns.filter(col => col.id !== "currentApprover");
+    }
+
+    // Lọc bỏ cột deadline nếu không có request nào có deadline
+    const hasDeadlines = data.some(
+        (item) => item.approvalStatus === "PENDING" && item.currentStepDeadline
+    );
+    if (!hasDeadlines) {
+        columns = columns.filter(col => col.id !== "deadline");
     }
 
     // 4. Cuối cùng mới return kết quả đã qua bộ lọc

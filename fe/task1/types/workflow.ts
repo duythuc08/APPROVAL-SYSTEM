@@ -6,6 +6,7 @@ export interface WorkflowStep {
     specificApproverId: string | null
     specificApproverName: string | null
     specificApproverUserName: string | null
+    deadlineHours: number | null
 }
 
 export interface WorkflowTemplate {
